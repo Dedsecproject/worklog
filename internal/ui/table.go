@@ -78,7 +78,7 @@ func FormatTaskLine(t *model.Task, showLineNumber bool) string {
 	indentLen := 0
 
 	if showLineNumber && t.LineNumber > 0 {
-		fileIndicator := ""
+		fileIndicator := "t:"
 		if strings.HasSuffix(t.FilePath, "journal.md") {
 			fileIndicator = "j:"
 		}
@@ -137,7 +137,7 @@ func FormatEntryLine(e *model.Entry, showLineNumber bool) string {
 	indentLen := 0
 
 	if showLineNumber && e.LineNumber > 0 {
-		rawPrefix := fmt.Sprintf("#%d", e.LineNumber)
+		rawPrefix := fmt.Sprintf("#j:%d", e.LineNumber)
 		linePrefix = fmt.Sprintf("%s%-6s%s ", colorGray, rawPrefix, colorReset)
 		indentLen += 7
 	}

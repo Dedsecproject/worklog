@@ -114,17 +114,13 @@ func FindTaskBySelector(filePath string, selector string) (*model.Task, error) {
 	}
 
 	if lineTarget > 0 {
-		// First check exact line number match
+		// Exact line number match (matching line number displayed on terminal)
 		for _, t := range tasks {
 			if t.LineNumber == lineTarget {
 				return t, nil
 			}
 		}
-		// If lineTarget is within 1..len(tasks), support 1-based index
-		if lineTarget <= len(tasks) {
-			return tasks[lineTarget-1], nil
-		}
-		return nil, fmt.Errorf("no task found at line or index %d", lineTarget)
+		return nil, fmt.Errorf("no task found at line %d", lineTarget)
 	}
 
 	// Text query search: search case-insensitively
@@ -168,10 +164,7 @@ func FindEntryBySelector(filePath string, selector string) (*model.Entry, error)
 				return e, nil
 			}
 		}
-		if lineTarget <= len(entries) {
-			return entries[lineTarget-1], nil
-		}
-		return nil, fmt.Errorf("no journal entry found at line or index %d", lineTarget)
+		return nil, fmt.Errorf("no journal entry found at line %d", lineTarget)
 	}
 
 	lowerQuery := strings.ToLower(cleanSelector)
