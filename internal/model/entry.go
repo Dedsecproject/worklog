@@ -1,0 +1,73 @@
+package model
+
+import (
+	"fmt"
+	"strings"
+	"time"
+)
+
+type Entry struct {
+	RawLine    string
+	LineNumber int
+	Timestamp  time.Time
+	Text       string
+	Tags       []string
+}
+
+// Markdown formats the entry as a bulleted text entry.
+func (e Entry) Markdown() string {
+	dateStr := e.Timestamp.Format(TimestampFormat)
+	tagsStr := ""
+	if len(e.Tags) > 0 {
+		tagsStr = " " + strings.Join(e.Tags, " ")
+	}
+	return fmt.Sprintf("- %s %s%s\n", dateStr, e.Text, tagsStr)
+}
+
+// ParseEntry parses a markdown bullet line into an Entry.
+// Format: - YYYY-MM-DD HH:MM Text #tags...
+func ParseEntry(line string, lineNumber int) (*Entry, error) {
+	trimmed := strings.TrimRight(line, "\r\n")
+	trimmedLeading := strings.TrimSpace(trimmed)
+
+	if !strings.HasPrefix(trimmedLeading, "- ") {
+		return nil, fmt.Errorf("line %d: not a valid journal entry format", lineNumber)
+	}
+
+	// Must not be a task checkbox (e.g. - [ ] or - [x] or - [/])
+	if strings.HasPrefix(trimmedLeading, "- [") {
+		return nil, fmt.Errorf("line %d: line is a task, not a journal entry", lineNumber)
+	}
+
+	content := strings.TrimPrefix(trimmedLeading, "- ")
+	content = strings.TrimSpace(content)
+
+	var timestamp time.Time
+	if len(content) >= 16 {
+		potentialDate := content[:16]
+		if t, err := time.ParseInLocation(TimestampFormat, potentialDate, time.Local); err == nil {
+			timestamp = t
+			content = strings.TrimSpace(content[16:])
+		}
+	}
+
+	if timestamp.IsZero() {
+		return nil, fmt.Errorf("line %d: missing or invalid timestamp", lineNumber)
+	}
+
+	tags := ExtractTags(content)
+
+	cleanedText := content
+	for _, tag := range tags {
+		cleanedText = strings.ReplaceAll(cleanedText, tag, "")
+	}
+	cleanedText = strings.Join(strings.Fields(cleanedText), " ")
+
+	return &Entry{
+		RawLine:    line,
+		LineNumber: lineNumber,
+		Timestamp:  timestamp,
+		Text:       cleanedText,
+		Tags:       tags,
+	}, nil
+}
