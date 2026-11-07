@@ -41,8 +41,11 @@ func ExpandPath(path string) (string, error) {
 	return filepath.Clean(path), nil
 }
 
-// DefaultConfigPath returns ~/.config/worklog/config.json
+// DefaultConfigPath returns ~/.config/worklog/config.json or $WORKLOG_CONFIG if set.
 func DefaultConfigPath() (string, error) {
+	if env := os.Getenv("WORKLOG_CONFIG"); env != "" {
+		return ExpandPath(env)
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -160,6 +163,43 @@ func (c *Config) GetEditor() string {
 		return env
 	}
 	return "nano"
+}
+
+// SetValue updates a config field by key name.
+func (c *Config) SetValue(key, value string) error {
+	switch strings.ToLower(key) {
+	case "vault_path", "vault", "path", "folder", "dir":
+		expanded, err := ExpandPath(value)
+		if err != nil {
+			return err
+		}
+		c.VaultPath = expanded
+	case "default_editor", "editor":
+		c.DefaultEditor = value
+	case "date_format":
+		c.DateFormat = value
+	case "time_format":
+		c.TimeFormat = value
+	default:
+		return errors.New("unknown config key (valid keys: vault_path, default_editor, date_format, time_format)")
+	}
+	return nil
+}
+
+// GetValue returns a config field value by key name.
+func (c *Config) GetValue(key string) (string, error) {
+	switch strings.ToLower(key) {
+	case "vault_path", "vault", "path", "folder", "dir":
+		return c.VaultPath, nil
+	case "default_editor", "editor":
+		return c.DefaultEditor, nil
+	case "date_format":
+		return c.DateFormat, nil
+	case "time_format":
+		return c.TimeFormat, nil
+	default:
+		return "", errors.New("unknown config key (valid keys: vault_path, default_editor, date_format, time_format)")
+	}
 }
 
 // Save writes the configuration to disk

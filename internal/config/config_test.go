@@ -72,3 +72,26 @@ func TestEnsureDir(t *testing.T) {
 		t.Errorf("journal.md was not created")
 	}
 }
+
+func TestSetAndGetValue(t *testing.T) {
+	cfg := &Config{}
+
+	if err := cfg.SetValue("editor", "hx"); err != nil {
+		t.Fatalf("SetValue editor failed: %v", err)
+	}
+	if cfg.DefaultEditor != "hx" {
+		t.Errorf("got %q, want hx", cfg.DefaultEditor)
+	}
+
+	val, err := cfg.GetValue("default_editor")
+	if err != nil {
+		t.Fatalf("GetValue failed: %v", err)
+	}
+	if val != "hx" {
+		t.Errorf("got %q, want hx", val)
+	}
+
+	if err := cfg.SetValue("invalid_key", "val"); err == nil {
+		t.Errorf("expected error on invalid key, got nil")
+	}
+}
