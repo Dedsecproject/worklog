@@ -36,6 +36,9 @@ Direct journal write:
   worklog Discussed microservice migration with team lead #arch
 `,
 	DisableFlagParsing: false,
+	CompletionOptions: cobra.CompletionOptions{
+		HiddenDefaultCmd: true,
+	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 		cfg, err = config.Load(vaultPathFlag)
@@ -45,6 +48,10 @@ Direct journal write:
 		if err := cfg.EnsureDir(); err != nil {
 			return fmt.Errorf("failed to initialize vault directory: %w", err)
 		}
+
+		// Ensure shell completion is installed in the user's rc file without duplication
+		_, _, _ = config.AutoInstallCompletion()
+
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -82,6 +89,9 @@ Direct journal write:
 }
 
 func isKnownSubcommand(name string) bool {
+	if name == "completion" || name == "help" || name == "version" {
+		return true
+	}
 	for _, c := range rootCmd.Commands() {
 		if c.Name() == name || c.HasAlias(name) {
 			return true
