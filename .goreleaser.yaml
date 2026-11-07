@@ -32,10 +32,10 @@ changelog:
 
 brews:
   - repository:
-      owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
+      owner: Dedsecproject
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     folder: Formula
-    homepage: "https://github.com/{{ .Env.GITHUB_REPOSITORY }}"
+    homepage: "https://github.com/Dedsecproject/worklog"
     description: "Instant terminal logger for tasks and thoughts with Obsidian compatibility"
     license: "MIT"

@@ -23,12 +23,12 @@
 ### Option 1: Homebrew (macOS & Linux)
 
 ```bash
-brew install <your-github-username>/tap/worklog
+brew install Dedsecproject/tap/worklog
 ```
 
 ### Option 2: Pre-compiled Binaries (GitHub Releases)
 
-Download the pre-compiled binary for your operating system and architecture from the [Releases](https://github.com/<your-github-username>/worklog/releases) page:
+Download the pre-compiled binary for your operating system and architecture from the [Releases](https://github.com/Dedsecproject/worklog/releases) page:
 - **macOS Apple Silicon (M1/M2/M3/M4):** `worklog_*_darwin_arm64.tar.gz`
 - **macOS Intel:** `worklog_*_darwin_amd64.tar.gz`
 - **Linux 64-bit:** `worklog_*_linux_amd64.tar.gz`
@@ -43,7 +43,7 @@ sudo mv worklog /usr/local/bin/
 ### Option 3: From Source (`go install`)
 
 ```bash
-go install github.com/<your-github-username>/worklog@latest
+go install github.com/Dedsecproject/worklog@latest
 ```
 
 ---
