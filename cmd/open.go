@@ -16,9 +16,10 @@ import (
 )
 
 var openCmd = &cobra.Command{
-	Use:   "open [journal|tasks]",
-	Short: "Open the target file in $EDITOR",
-	Args:  cobra.MaximumNArgs(1),
+	Use:     "open [journal|tasks]",
+	Short:   "Open the target file in $EDITOR",
+	GroupID: "tools",
+	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := "journal"
 		if len(args) > 0 {
@@ -42,9 +43,10 @@ var openCmd = &cobra.Command{
 }
 
 var exportCmd = &cobra.Command{
-	Use:   "export [csv|json]",
-	Short: "Dump data to stdout in CSV or JSON format",
-	Args:  cobra.MaximumNArgs(1),
+	Use:     "export [csv|json]",
+	Short:   "Dump data to stdout in CSV or JSON format",
+	GroupID: "tools",
+	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		format := "json"
 		if len(args) > 0 {
@@ -119,8 +121,9 @@ var (
 )
 
 var configCmd = &cobra.Command{
-	Use:   "config [key] [value]",
-	Short: "Show or update configuration settings",
+	Use:     "config [key] [value]",
+	Short:   "Show or update configuration settings",
+	GroupID: "tools",
 	Long: `Show or update current configuration settings.
 
 Examples:

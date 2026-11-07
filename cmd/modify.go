@@ -16,9 +16,10 @@ import (
 var forceDelete bool
 
 var rmCmd = &cobra.Command{
-	Use:   "rm <selector>",
-	Short: "Delete an entry (interactive confirmation)",
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "rm <selector>",
+	Short:   "Delete an entry (interactive confirmation)",
+	GroupID: "tools",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		selector := strings.Join(args, " ")
 
@@ -67,9 +68,10 @@ var rmCmd = &cobra.Command{
 }
 
 var editCmd = &cobra.Command{
-	Use:   "edit <selector> [new text]",
-	Short: "Edit entry in place or in $EDITOR",
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "edit <selector> [new text]",
+	Short:   "Edit entry in place or in $EDITOR",
+	GroupID: "tools",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		selector := args[0]
 		newText := ""

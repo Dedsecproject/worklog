@@ -15,9 +15,10 @@ import (
 )
 
 var searchCmd = &cobra.Command{
-	Use:   "search <term>",
-	Short: "Full-text regex search across tasks and journal",
-	Args:  cobra.ExactArgs(1),
+	Use:     "search <term>",
+	Short:   "Full-text regex search across tasks and journal",
+	GroupID: "read",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pattern := args[0]
 		re, err := regexp.Compile("(?i)" + pattern)
@@ -60,8 +61,9 @@ var searchCmd = &cobra.Command{
 }
 
 var tagsCmd = &cobra.Command{
-	Use:   "tags",
-	Short: "List unique tags across both files",
+	Use:     "tags",
+	Short:   "List unique tags across both files",
+	GroupID: "read",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		tags, counts, err := storage.CollectTags(cfg.TasksFilePath(), cfg.JournalFilePath())
 		if err != nil {
@@ -83,9 +85,10 @@ var tagsCmd = &cobra.Command{
 }
 
 var tailCmd = &cobra.Command{
-	Use:   "tail [n] [journal|tasks]",
-	Short: "Show last n lines (default: 10, journal)",
-	Args:  cobra.MaximumNArgs(2),
+	Use:     "tail [n] [journal|tasks]",
+	Short:   "Show last n lines (default: 10, journal)",
+	GroupID: "read",
+	Args:    cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		n := 10
 		target := "journal"
@@ -125,8 +128,9 @@ var tailCmd = &cobra.Command{
 }
 
 var statsCmd = &cobra.Command{
-	Use:   "stats",
-	Short: "Metrics breakdown (item count by date/status)",
+	Use:     "stats",
+	Short:   "Metrics breakdown (item count by date/status)",
+	GroupID: "read",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		entries, err := storage.ScanEntries(cfg.JournalFilePath(), nil)
 		if err != nil {

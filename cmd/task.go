@@ -13,8 +13,9 @@ import (
 )
 
 var taskCmd = &cobra.Command{
-	Use:   "task [todo|doing|done] <text>",
-	Short: "Add a task or manage task state",
+	Use:     "task [todo|doing|done] <text>",
+	Short:   "Add a task or manage task state",
+	GroupID: "task",
 	Long: `Add a new task (defaulting to todo) or toggle an existing task.
 
 Examples:
@@ -107,9 +108,10 @@ var toggleCmd = &cobra.Command{
 }
 
 var doneCmd = &cobra.Command{
-	Use:   "done <text>",
-	Short: "Add an already-completed task",
-	Args:  cobra.MinimumNArgs(1),
+	Use:     "done <text>",
+	Short:   "Add an already-completed task",
+	GroupID: "task",
+	Args:    cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		rawText := strings.TrimSpace(strings.Join(args, " "))
 		now := time.Now()
@@ -138,8 +140,9 @@ var doneCmd = &cobra.Command{
 }
 
 var doingCmd = &cobra.Command{
-	Use:   "doing [text]",
-	Short: "List all in-progress tasks, or start an in-progress task",
+	Use:     "doing [text]",
+	Short:   "List all in-progress tasks, or start an in-progress task",
+	GroupID: "task",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			// List all in-progress tasks

@@ -140,5 +140,22 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "write",
+		Title: "Journal & Writing:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "task",
+		Title: "Task Management:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "read",
+		Title: "Read & Search:",
+	})
+	rootCmd.AddGroup(&cobra.Group{
+		ID:    "tools",
+		Title: "Modify, Files & Tools:",
+	})
+
 	rootCmd.PersistentFlags().StringVarP(&vaultPathFlag, "path", "p", "", "Path to the worklog/vault data directory")
 }

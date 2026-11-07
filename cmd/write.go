@@ -14,16 +14,40 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var writeCmd = &cobra.Command{
-	Use:    "write <text>",
-	Short:  "Append a journal entry directly",
-	Hidden: true,
+var journalCmd = &cobra.Command{
+	Use:     "journal [text]",
+	Aliases: []string{"log", "j", "write"},
+	Short:   "List journal entries or append a new entry",
+	Long: `List recent journal entries, or append a new entry directly.
+
+Examples:
+  worklog journal                                  # List recent journal entries
+  worklog journal Met with team lead #meetings     # Append a new journal entry
+  worklog "Met with team lead #meetings"           # Direct append shortcut (no command name needed)
+`,
+	GroupID: "write",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		text := strings.TrimSpace(strings.Join(args, " "))
-		if text == "" {
-			return fmt.Errorf("journal entry cannot be empty")
+		if len(args) == 0 {
+			entries, err := storage.ScanEntries(cfg.JournalFilePath(), nil)
+			if err != nil {
+				return err
+			}
+			if len(entries) == 0 {
+				fmt.Println("(no journal entries)")
+				return nil
+			}
+
+			displayCount := 20
+			if len(entries) > displayCount {
+				entries = entries[len(entries)-displayCount:]
+			}
+
+			ui.PrintHeader(os.Stdout, fmt.Sprintf("Recent Journal Entries (%d)", len(entries)))
+			ui.RenderEntries(os.Stdout, entries, true)
+			return nil
 		}
 
+		text := strings.TrimSpace(strings.Join(args, " "))
 		now := time.Now()
 		tags := model.ExtractTags(text)
 		cleanedText := text
@@ -48,8 +72,9 @@ var writeCmd = &cobra.Command{
 }
 
 var noteCmd = &cobra.Command{
-	Use:   "note",
-	Short: "Compose multi-line entry in $EDITOR",
+	Use:     "note",
+	Short:   "Compose multi-line entry in $EDITOR",
+	GroupID: "write",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		editor := cfg.GetEditor()
 
@@ -127,6 +152,6 @@ var noteCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(writeCmd)
+	rootCmd.AddCommand(journalCmd)
 	rootCmd.AddCommand(noteCmd)
 }

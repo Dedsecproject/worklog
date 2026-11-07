@@ -61,25 +61,28 @@ func showDate(targetDate time.Time) error {
 }
 
 var todayCmd = &cobra.Command{
-	Use:   "today",
-	Short: "Show today's journal entries and tasks (including in-progress tasks)",
+	Use:     "today",
+	Short:   "Show today's journal entries and tasks (including in-progress tasks)",
+	GroupID: "read",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return showDate(time.Now())
 	},
 }
 
 var yesterdayCmd = &cobra.Command{
-	Use:   "yesterday",
-	Short: "Show yesterday's entries and tasks",
+	Use:     "yesterday",
+	Short:   "Show yesterday's entries and tasks",
+	GroupID: "read",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return showDate(time.Now().AddDate(0, 0, -1))
 	},
 }
 
 var dayCmd = &cobra.Command{
-	Use:   "day <YYYY-MM-DD|MM/DD>",
-	Short: "Show entries and tasks for a specific date",
-	Args:  cobra.ExactArgs(1),
+	Use:     "day <YYYY-MM-DD|MM/DD>",
+	Short:   "Show entries and tasks for a specific date",
+	GroupID: "read",
+	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targetDate, err := parseDateInput(args[0])
 		if err != nil {
@@ -90,9 +93,10 @@ var dayCmd = &cobra.Command{
 }
 
 var weekCmd = &cobra.Command{
-	Use:   "week [n]",
-	Short: "Show last n days (default: 7)",
-	Args:  cobra.MaximumNArgs(1),
+	Use:     "week [n]",
+	Short:   "Show last n days (default: 7)",
+	GroupID: "read",
+	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		days := 7
 		if len(args) > 0 {
@@ -146,9 +150,10 @@ var weekCmd = &cobra.Command{
 }
 
 var monthCmd = &cobra.Command{
-	Use:   "month [YYYY-MM]",
-	Short: "Show calendar month breakdown",
-	Args:  cobra.MaximumNArgs(1),
+	Use:     "month [YYYY-MM]",
+	Short:   "Show calendar month breakdown",
+	GroupID: "read",
+	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		monthPrefix := time.Now().Format("2006-01")
 		if len(args) > 0 {
@@ -208,9 +213,10 @@ var monthCmd = &cobra.Command{
 }
 
 var tasksListCmd = &cobra.Command{
-	Use:   "tasks [todo|doing|done|all]",
-	Short: "List tasks filtered/grouped by status",
-	Args:  cobra.MaximumNArgs(1),
+	Use:     "tasks [todo|doing|done|all]",
+	Short:   "List tasks filtered/grouped by status",
+	GroupID: "task",
+	Args:    cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		filterStatus := "all"
 		if len(args) > 0 {
