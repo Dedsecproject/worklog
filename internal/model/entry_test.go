@@ -28,9 +28,11 @@ func TestParseEntry(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "Task line should fail for entry",
-			input:     "- [ ] 2026-11-06 14:35 Task line",
-			expectErr: true,
+			name:      "Entry with checkbox prefix is preserved",
+			input:     "- [/] 2026-11-06 14:35 In progress note",
+			wantText:  "In progress note",
+			wantTags:  nil,
+			expectErr: false,
 		},
 		{
 			name:      "Invalid format",

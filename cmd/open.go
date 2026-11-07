@@ -55,7 +55,7 @@ var exportCmd = &cobra.Command{
 			return err
 		}
 
-		tasks, err := storage.ScanTasks(cfg.TasksFilePath(), nil)
+		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), nil)
 		if err != nil {
 			return err
 		}

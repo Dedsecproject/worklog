@@ -2,11 +2,15 @@ package model
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
 
+var entryPrefixRegex = regexp.MustCompile(`^-\s*(\[(\s*|\/|x|X|-)\])?\s*`)
+
 type Entry struct {
+	FilePath   string
 	RawLine    string
 	LineNumber int
 	Timestamp  time.Time
@@ -16,7 +20,11 @@ type Entry struct {
 
 // Markdown formats the entry as a bulleted text entry.
 func (e Entry) Markdown() string {
-	dateStr := e.Timestamp.Format(TimestampFormat)
+	ts := e.Timestamp
+	if ts.IsZero() {
+		ts = time.Now()
+	}
+	dateStr := ts.Format(TimestampFormat)
 	tagsStr := ""
 	if len(e.Tags) > 0 {
 		tagsStr = " " + strings.Join(e.Tags, " ")
@@ -26,21 +34,21 @@ func (e Entry) Markdown() string {
 
 // ParseEntry parses a markdown bullet line into an Entry.
 // Format: - YYYY-MM-DD HH:MM Text #tags...
+// Also supports notes prefixed with checkboxes like - [/] or - [ ] so they never disappear.
 func ParseEntry(line string, lineNumber int) (*Entry, error) {
 	trimmed := strings.TrimRight(line, "\r\n")
 	trimmedLeading := strings.TrimSpace(trimmed)
 
-	if !strings.HasPrefix(trimmedLeading, "- ") {
+	if !strings.HasPrefix(trimmedLeading, "-") {
 		return nil, fmt.Errorf("line %d: not a valid journal entry format", lineNumber)
 	}
 
-	// Must not be a task checkbox (e.g. - [ ] or - [x] or - [/])
-	if strings.HasPrefix(trimmedLeading, "- [") {
-		return nil, fmt.Errorf("line %d: line is a task, not a journal entry", lineNumber)
+	prefixMatch := entryPrefixRegex.FindStringSubmatch(trimmedLeading)
+	if len(prefixMatch) == 0 {
+		return nil, fmt.Errorf("line %d: not a valid journal entry format", lineNumber)
 	}
 
-	content := strings.TrimPrefix(trimmedLeading, "- ")
-	content = strings.TrimSpace(content)
+	content := strings.TrimSpace(trimmedLeading[len(prefixMatch[0]):])
 
 	var timestamp time.Time
 	if len(content) >= 16 {
@@ -51,8 +59,9 @@ func ParseEntry(line string, lineNumber int) (*Entry, error) {
 		}
 	}
 
+	// If no timestamp was found in line, default to current time
 	if timestamp.IsZero() {
-		return nil, fmt.Errorf("line %d: missing or invalid timestamp", lineNumber)
+		timestamp = time.Now()
 	}
 
 	tags := ExtractTags(content)

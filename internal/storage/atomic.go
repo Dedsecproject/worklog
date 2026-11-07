@@ -78,6 +78,21 @@ func MutateFile(filePath string, mutator func(lineNum int, line string) (newLine
 	return nil
 }
 
+// FindTaskInFiles searches tasksFilePath first, and journalFilePath if not found.
+func FindTaskInFiles(tasksFilePath, journalFilePath string, selector string) (*model.Task, error) {
+	task, err := FindTaskBySelector(tasksFilePath, selector)
+	if err == nil {
+		return task, nil
+	}
+	if journalFilePath != "" && journalFilePath != tasksFilePath {
+		jTask, jErr := FindTaskBySelector(journalFilePath, selector)
+		if jErr == nil {
+			return jTask, nil
+		}
+	}
+	return nil, err
+}
+
 // FindTaskBySelector searches for a task matching line number, #number, or text substring.
 // If multiple text matches exist, it returns the most recent one (last in file).
 func FindTaskBySelector(filePath string, selector string) (*model.Task, error) {

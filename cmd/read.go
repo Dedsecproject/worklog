@@ -15,16 +15,13 @@ import (
 
 func parseDateInput(input string) (time.Time, error) {
 	input = strings.TrimSpace(input)
-	// Try YYYY-MM-DD
 	if t, err := time.ParseInLocation("2006-01-02", input, time.Local); err == nil {
 		return t, nil
 	}
-	// Try MM/DD
 	now := time.Now()
 	if t, err := time.ParseInLocation("01/02", input, time.Local); err == nil {
 		return time.Date(now.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local), nil
 	}
-	// Try MM-DD
 	if t, err := time.ParseInLocation("01-02", input, time.Local); err == nil {
 		return time.Date(now.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local), nil
 	}
@@ -33,6 +30,7 @@ func parseDateInput(input string) (time.Time, error) {
 
 func showDate(targetDate time.Time) error {
 	targetDateStr := targetDate.Format("2006-01-02")
+	isToday := targetDateStr == time.Now().Format("2006-01-02")
 
 	entries, err := storage.ScanEntries(cfg.JournalFilePath(), func(e *model.Entry) bool {
 		return e.Timestamp.Format("2006-01-02") == targetDateStr
@@ -41,8 +39,18 @@ func showDate(targetDate time.Time) error {
 		return fmt.Errorf("failed reading journal: %w", err)
 	}
 
-	tasks, err := storage.ScanTasks(cfg.TasksFilePath(), func(t *model.Task) bool {
-		return t.CreatedAt.Format("2006-01-02") == targetDateStr
+	tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
+		// When viewing today, always show in-progress tasks
+		if isToday && t.Status == model.StatusDoing {
+			return true
+		}
+		if t.CreatedAt.Format("2006-01-02") == targetDateStr {
+			return true
+		}
+		if t.CompletedAt != nil && t.CompletedAt.Format("2006-01-02") == targetDateStr {
+			return true
+		}
+		return false
 	})
 	if err != nil {
 		return fmt.Errorf("failed reading tasks: %w", err)
@@ -54,7 +62,7 @@ func showDate(targetDate time.Time) error {
 
 var todayCmd = &cobra.Command{
 	Use:   "today",
-	Short: "Show today's journal entries and tasks",
+	Short: "Show today's journal entries and tasks (including in-progress tasks)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return showDate(time.Now())
 	},
@@ -104,8 +112,8 @@ var weekCmd = &cobra.Command{
 			return err
 		}
 
-		tasks, err := storage.ScanTasks(cfg.TasksFilePath(), func(t *model.Task) bool {
-			return t.CreatedAt.Format("2006-01-02") >= startStr
+		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
+			return t.CreatedAt.Format("2006-01-02") >= startStr || t.Status == model.StatusDoing
 		})
 		if err != nil {
 			return err
@@ -154,7 +162,7 @@ var monthCmd = &cobra.Command{
 			return err
 		}
 
-		tasks, err := storage.ScanTasks(cfg.TasksFilePath(), func(t *model.Task) bool {
+		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
 			return strings.HasPrefix(t.CreatedAt.Format("2006-01-02"), monthPrefix)
 		})
 		if err != nil {
@@ -178,7 +186,6 @@ var monthCmd = &cobra.Command{
 			return fmt.Errorf("invalid month format; use YYYY-MM")
 		}
 
-		// Days in month
 		firstDay := time.Date(targetTime.Year(), targetTime.Month(), 1, 0, 0, 0, 0, time.Local)
 		lastDay := firstDay.AddDate(0, 1, -1)
 
@@ -210,11 +217,11 @@ var tasksListCmd = &cobra.Command{
 			filterStatus = strings.ToLower(args[0])
 		}
 
-		tasks, err := storage.ScanTasks(cfg.TasksFilePath(), func(t *model.Task) bool {
+		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
 			switch filterStatus {
 			case "todo":
 				return t.Status == model.StatusTodo
-			case "doing":
+			case "doing", "in-progress", "inprogress":
 				return t.Status == model.StatusDoing
 			case "done":
 				return t.Status == model.StatusDone
@@ -224,6 +231,22 @@ var tasksListCmd = &cobra.Command{
 		})
 		if err != nil {
 			return err
+		}
+
+		if filterStatus == "all" && len(tasks) > 0 {
+			var doingTasks, todoTasks, doneTasks []*model.Task
+			for _, t := range tasks {
+				switch t.Status {
+				case model.StatusDoing:
+					doingTasks = append(doingTasks, t)
+				case model.StatusTodo:
+					todoTasks = append(todoTasks, t)
+				case model.StatusDone:
+					doneTasks = append(doneTasks, t)
+				}
+			}
+			ui.RenderGroupedTasks(os.Stdout, doingTasks, todoTasks, doneTasks, true)
+			return nil
 		}
 
 		ui.PrintHeader(os.Stdout, fmt.Sprintf("Tasks (%s: %d)", filterStatus, len(tasks)))

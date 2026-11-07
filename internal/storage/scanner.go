@@ -14,7 +14,7 @@ type TaskFilter func(t *model.Task) bool
 // EntryFilter is a predicate function for filtering journal entries.
 type EntryFilter func(e *model.Entry) bool
 
-// ScanTasks streams lines from tasks.md and returns parsed tasks matching the filter.
+// ScanTasks streams lines from a file and returns parsed tasks matching the filter.
 func ScanTasks(filePath string, filter TaskFilter) ([]*model.Task, error) {
 	file, err := os.Open(filePath)
 	if os.IsNotExist(err) {
@@ -38,9 +38,10 @@ func ScanTasks(filePath string, filter TaskFilter) ([]*model.Task, error) {
 
 		task, err := model.ParseTask(line, lineNumber)
 		if err != nil {
-			// Skip lines that aren't tasks (e.g. headers or freeform notes)
+			// Skip lines that aren't tasks
 			continue
 		}
+		task.FilePath = filePath
 
 		if filter == nil || filter(task) {
 			tasks = append(tasks, task)
@@ -49,6 +50,23 @@ func ScanTasks(filePath string, filter TaskFilter) ([]*model.Task, error) {
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+
+	return tasks, nil
+}
+
+// ScanAllTasks scans both tasks.md and journal.md to ensure no tasks or checkbox notes are missed.
+func ScanAllTasks(tasksFilePath, journalFilePath string, filter TaskFilter) ([]*model.Task, error) {
+	tasks, err := ScanTasks(tasksFilePath, filter)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	if journalFilePath != "" && journalFilePath != tasksFilePath {
+		journalTasks, err := ScanTasks(journalFilePath, filter)
+		if err == nil && len(journalTasks) > 0 {
+			tasks = append(tasks, journalTasks...)
+		}
 	}
 
 	return tasks, nil
@@ -81,6 +99,7 @@ func ScanEntries(filePath string, filter EntryFilter) ([]*model.Entry, error) {
 			// Skip lines that aren't journal entries
 			continue
 		}
+		entry.FilePath = filePath
 
 		if filter == nil || filter(entry) {
 			entries = append(entries, entry)
@@ -98,7 +117,7 @@ func ScanEntries(filePath string, filter EntryFilter) ([]*model.Entry, error) {
 func CollectTags(tasksFile, journalFile string) ([]string, map[string]int, error) {
 	counts := make(map[string]int)
 
-	tasks, err := ScanTasks(tasksFile, nil)
+	tasks, err := ScanAllTasks(tasksFile, journalFile, nil)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, nil, err
 	}

@@ -21,11 +21,13 @@ const (
 )
 
 var (
-	tagRegex     = regexp.MustCompile(`#[a-zA-Z0-9_\-]+`)
-	doneTagRegex = regexp.MustCompile(`\(done:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\)`)
+	tagRegex         = regexp.MustCompile(`#[a-zA-Z0-9_\-]+`)
+	doneTagRegex     = regexp.MustCompile(`\(done:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\)`)
+	taskPrefixRegex  = regexp.MustCompile(`^-\s*\[(\s*|\/|x|X|-)\]\s*`)
 )
 
 type Task struct {
+	FilePath    string
 	RawLine     string
 	LineNumber  int
 	Status      TaskStatus
@@ -47,7 +49,12 @@ func (t Task) Markdown() string {
 		box = "[ ]"
 	}
 
-	dateStr := t.CreatedAt.Format(TimestampFormat)
+	created := t.CreatedAt
+	if created.IsZero() {
+		created = time.Now()
+	}
+	dateStr := created.Format(TimestampFormat)
+
 	var doneStr string
 	if t.CompletedAt != nil {
 		doneStr = fmt.Sprintf(" (done: %s)", t.CompletedAt.Format(TimestampFormat))
@@ -87,7 +94,6 @@ func ExtractTags(s string) []string {
 	if len(matches) == 0 {
 		return nil
 	}
-	// Deduplicate preserving order
 	seen := make(map[string]bool)
 	var tags []string
 	for _, match := range matches {
@@ -102,34 +108,30 @@ func ExtractTags(s string) []string {
 // ParseTask parses a line into a Task.
 // Supported prefixes:
 // - [ ] (todo)
-// - [/] (doing)
+// - [/] (doing / in-progress)
+// - [-] (doing / cancelled)
 // - [x] or - [X] (done)
 func ParseTask(line string, lineNumber int) (*Task, error) {
 	trimmed := strings.TrimRight(line, "\r\n")
 	trimmedLeading := strings.TrimSpace(trimmed)
 
-	var status TaskStatus
-	var content string
-
-	switch {
-	case strings.HasPrefix(trimmedLeading, "- [ ] "):
-		status = StatusTodo
-		content = strings.TrimPrefix(trimmedLeading, "- [ ] ")
-	case strings.HasPrefix(trimmedLeading, "- [/] "):
-		status = StatusDoing
-		content = strings.TrimPrefix(trimmedLeading, "- [/] ")
-	case strings.HasPrefix(trimmedLeading, "- [x] ") || strings.HasPrefix(trimmedLeading, "- [X] "):
-		status = StatusDone
-		if strings.HasPrefix(trimmedLeading, "- [x] ") {
-			content = strings.TrimPrefix(trimmedLeading, "- [x] ")
-		} else {
-			content = strings.TrimPrefix(trimmedLeading, "- [X] ")
-		}
-	default:
+	prefixMatch := taskPrefixRegex.FindStringSubmatch(trimmedLeading)
+	if len(prefixMatch) == 0 {
 		return nil, fmt.Errorf("line %d: not a valid task format", lineNumber)
 	}
 
-	content = strings.TrimSpace(content)
+	marker := strings.TrimSpace(prefixMatch[1])
+	var status TaskStatus
+	switch marker {
+	case "/", "-":
+		status = StatusDoing
+	case "x", "X":
+		status = StatusDone
+	default:
+		status = StatusTodo
+	}
+
+	content := strings.TrimSpace(trimmedLeading[len(prefixMatch[0]):])
 
 	// Check if content starts with a timestamp: YYYY-MM-DD HH:MM (16 chars)
 	var createdAt time.Time
@@ -141,6 +143,11 @@ func ParseTask(line string, lineNumber int) (*Task, error) {
 		}
 	}
 
+	// If no timestamp was in the line, default to current time so it is not lost to year 0001
+	if createdAt.IsZero() {
+		createdAt = time.Now()
+	}
+
 	// Check for (done: YYYY-MM-DD HH:MM)
 	var completedAt *time.Time
 	if doneMatches := doneTagRegex.FindStringSubmatch(content); len(doneMatches) > 1 {
@@ -150,10 +157,8 @@ func ParseTask(line string, lineNumber int) (*Task, error) {
 		}
 	}
 
-	// Extract tags from the content
 	tags := ExtractTags(content)
 
-	// Clean tags from main text so Text only holds the core description
 	cleanedText := content
 	for _, tag := range tags {
 		cleanedText = strings.ReplaceAll(cleanedText, tag, "")

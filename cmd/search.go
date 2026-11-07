@@ -32,7 +32,7 @@ var searchCmd = &cobra.Command{
 			return err
 		}
 
-		tasks, err := storage.ScanTasks(cfg.TasksFilePath(), func(t *model.Task) bool {
+		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
 			return re.MatchString(t.Text) || re.MatchString(t.RawLine)
 		})
 		if err != nil {
@@ -133,7 +133,7 @@ var statsCmd = &cobra.Command{
 			return err
 		}
 
-		tasks, err := storage.ScanTasks(cfg.TasksFilePath(), nil)
+		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), nil)
 		if err != nil {
 			return err
 		}

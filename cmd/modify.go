@@ -23,8 +23,12 @@ var rmCmd = &cobra.Command{
 		selector := strings.Join(args, " ")
 
 		// Try tasks first
-		task, taskErr := storage.FindTaskBySelector(cfg.TasksFilePath(), selector)
+		task, taskErr := storage.FindTaskInFiles(cfg.TasksFilePath(), cfg.JournalFilePath(), selector)
 		if taskErr == nil {
+			targetFile := task.FilePath
+			if targetFile == "" {
+				targetFile = cfg.TasksFilePath()
+			}
 			fmt.Printf("Found Task (#%d): %s\n", task.LineNumber, ui.FormatTaskLine(task, false))
 			if !forceDelete {
 				if !askConfirmation("Delete this task?") {
@@ -32,7 +36,7 @@ var rmCmd = &cobra.Command{
 					return nil
 				}
 			}
-			_, err := storage.DeleteLine(cfg.TasksFilePath(), task.LineNumber)
+			_, err := storage.DeleteLine(targetFile, task.LineNumber)
 			if err != nil {
 				return fmt.Errorf("failed deleting task: %w", err)
 			}
@@ -74,8 +78,12 @@ var editCmd = &cobra.Command{
 		}
 
 		// Try tasks first
-		task, taskErr := storage.FindTaskBySelector(cfg.TasksFilePath(), selector)
+		task, taskErr := storage.FindTaskInFiles(cfg.TasksFilePath(), cfg.JournalFilePath(), selector)
 		if taskErr == nil {
+			targetFile := task.FilePath
+			if targetFile == "" {
+				targetFile = cfg.TasksFilePath()
+			}
 			if newText != "" {
 				tags := model.ExtractTags(newText)
 				cleaned := newText
@@ -85,7 +93,7 @@ var editCmd = &cobra.Command{
 				task.Text = strings.Join(strings.Fields(cleaned), " ")
 				task.Tags = tags
 				newLine := strings.TrimRight(task.Markdown(), "\n")
-				if err := storage.ReplaceLine(cfg.TasksFilePath(), task.LineNumber, newLine); err != nil {
+				if err := storage.ReplaceLine(targetFile, task.LineNumber, newLine); err != nil {
 					return err
 				}
 				ui.PrintSuccess(os.Stdout, "Task updated: %s", ui.FormatTaskLine(task, true))
@@ -101,7 +109,7 @@ var editCmd = &cobra.Command{
 				fmt.Println("No changes made.")
 				return nil
 			}
-			if err := storage.ReplaceLine(cfg.TasksFilePath(), task.LineNumber, editedLine); err != nil {
+			if err := storage.ReplaceLine(targetFile, task.LineNumber, editedLine); err != nil {
 				return err
 			}
 			ui.PrintSuccess(os.Stdout, "Task updated")

@@ -76,7 +76,11 @@ func FormatTaskLine(t *model.Task, showLineNumber bool) string {
 
 	linePrefix := ""
 	if showLineNumber && t.LineNumber > 0 {
-		linePrefix = fmt.Sprintf("%s#%-3d%s ", colorGray, t.LineNumber, colorReset)
+		fileIndicator := ""
+		if strings.HasSuffix(t.FilePath, "journal.md") {
+			fileIndicator = "j:"
+		}
+		linePrefix = fmt.Sprintf("%s#%s%-3d%s ", colorGray, fileIndicator, t.LineNumber, colorReset)
 	}
 
 	timeStr := ""
@@ -125,6 +129,37 @@ func RenderTasks(w io.Writer, tasks []*model.Task, showLineNumber bool) {
 	}
 	for _, t := range tasks {
 		fmt.Fprintln(w, FormatTaskLine(t, showLineNumber))
+	}
+}
+
+// RenderGroupedTasks prints tasks categorized into Doing, Todo, and Done.
+func RenderGroupedTasks(w io.Writer, doing, todo, done []*model.Task, showLineNumber bool) {
+	total := len(doing) + len(todo) + len(done)
+	PrintHeader(w, fmt.Sprintf("Tasks (%d total)", total))
+
+	if len(doing) > 0 {
+		fmt.Fprintf(w, "\n  %s%s⚡ In Progress (%d):%s\n", colorBold, colorBlue, len(doing), colorReset)
+		for _, t := range doing {
+			fmt.Fprintf(w, "    %s\n", FormatTaskLine(t, showLineNumber))
+		}
+	}
+
+	if len(todo) > 0 {
+		fmt.Fprintf(w, "\n  %s%s☐ Todo (%d):%s\n", colorBold, colorYellow, len(todo), colorReset)
+		for _, t := range todo {
+			fmt.Fprintf(w, "    %s\n", FormatTaskLine(t, showLineNumber))
+		}
+	}
+
+	if len(done) > 0 {
+		fmt.Fprintf(w, "\n  %s%s✓ Done (%d):%s\n", colorBold, colorGreen, len(done), colorReset)
+		for _, t := range done {
+			fmt.Fprintf(w, "    %s\n", FormatTaskLine(t, showLineNumber))
+		}
+	}
+
+	if total == 0 {
+		fmt.Fprintf(w, "%s(no tasks)%s\n", colorDim, colorReset)
 	}
 }
 

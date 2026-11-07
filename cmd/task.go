@@ -36,7 +36,7 @@ Examples:
 		case "todo":
 			status = model.StatusTodo
 			taskTextArgs = args[1:]
-		case "doing":
+		case "doing", "in-progress", "inprogress":
 			status = model.StatusDoing
 			taskTextArgs = args[1:]
 		case "done":
@@ -85,13 +85,18 @@ var toggleCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		selector := strings.Join(args, " ")
-		task, err := storage.FindTaskBySelector(cfg.TasksFilePath(), selector)
+		task, err := storage.FindTaskInFiles(cfg.TasksFilePath(), cfg.JournalFilePath(), selector)
 		if err != nil {
 			return err
 		}
 
+		targetFile := task.FilePath
+		if targetFile == "" {
+			targetFile = cfg.TasksFilePath()
+		}
+
 		now := time.Now()
-		updated, err := storage.ToggleTask(cfg.TasksFilePath(), task.LineNumber, now)
+		updated, err := storage.ToggleTask(targetFile, task.LineNumber, now)
 		if err != nil {
 			return err
 		}
@@ -132,8 +137,52 @@ var doneCmd = &cobra.Command{
 	},
 }
 
+var doingCmd = &cobra.Command{
+	Use:   "doing [text]",
+	Short: "List all in-progress tasks, or start an in-progress task",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			// List all in-progress tasks
+			tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
+				return t.Status == model.StatusDoing
+			})
+			if err != nil {
+				return err
+			}
+			ui.PrintHeader(os.Stdout, fmt.Sprintf("In Progress Tasks ([/]: %d)", len(tasks)))
+			ui.RenderTasks(os.Stdout, tasks, true)
+			return nil
+		}
+
+		// Add new in-progress task
+		rawText := strings.TrimSpace(strings.Join(args, " "))
+		now := time.Now()
+		tags := model.ExtractTags(rawText)
+		cleanedText := rawText
+		for _, tag := range tags {
+			cleanedText = strings.ReplaceAll(cleanedText, tag, "")
+		}
+		cleanedText = strings.Join(strings.Fields(cleanedText), " ")
+
+		task := &model.Task{
+			Status:    model.StatusDoing,
+			CreatedAt: now,
+			Text:      cleanedText,
+			Tags:      tags,
+		}
+
+		if err := storage.AppendTask(cfg.TasksFilePath(), task); err != nil {
+			return fmt.Errorf("failed to save task: %w", err)
+		}
+
+		ui.PrintSuccess(os.Stdout, "In-progress task started: %s", ui.FormatTaskLine(task, false))
+		return nil
+	},
+}
+
 func init() {
 	taskCmd.AddCommand(toggleCmd)
 	rootCmd.AddCommand(taskCmd)
 	rootCmd.AddCommand(doneCmd)
+	rootCmd.AddCommand(doingCmd)
 }
