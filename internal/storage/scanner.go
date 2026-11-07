@@ -37,14 +37,16 @@ func ScanTasks(filePath string, filter TaskFilter) ([]*model.Task, error) {
 		}
 
 		task, err := model.ParseTask(line, lineNumber)
-		if err != nil {
-			// Skip lines that aren't tasks
-			continue
-		}
-		task.FilePath = filePath
-
-		if filter == nil || filter(task) {
-			tasks = append(tasks, task)
+		if err == nil {
+			task.FilePath = filePath
+			if filter == nil || filter(task) {
+				tasks = append(tasks, task)
+			}
+		} else if len(tasks) > 0 && (strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t")) {
+			// Continuation line belonging to the previous task
+			lastTask := tasks[len(tasks)-1]
+			lastTask.Text += "\n" + strings.TrimSpace(line)
+			lastTask.RawLine += "\n" + line
 		}
 	}
 
@@ -95,14 +97,16 @@ func ScanEntries(filePath string, filter EntryFilter) ([]*model.Entry, error) {
 		}
 
 		entry, err := model.ParseEntry(line, lineNumber)
-		if err != nil {
-			// Skip lines that aren't journal entries
-			continue
-		}
-		entry.FilePath = filePath
-
-		if filter == nil || filter(entry) {
-			entries = append(entries, entry)
+		if err == nil {
+			entry.FilePath = filePath
+			if filter == nil || filter(entry) {
+				entries = append(entries, entry)
+			}
+		} else if len(entries) > 0 && (strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t")) {
+			// Continuation line belonging to the previous journal entry
+			lastEntry := entries[len(entries)-1]
+			lastEntry.Text += "\n" + strings.TrimSpace(line)
+			lastEntry.RawLine += "\n" + line
 		}
 	}
 

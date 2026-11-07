@@ -147,3 +147,28 @@ func TestTailLines(t *testing.T) {
 		t.Errorf("unexpected tail contents: %v", tail)
 	}
 }
+
+func TestMultilineTaskScanning(t *testing.T) {
+	tempDir := t.TempDir()
+	tasksFile := filepath.Join(tempDir, "tasks.md")
+
+	content := "- [ ] 2026-11-06 14:30 Main task description\n  Continuation line one\n  Continuation line two\n- [/] 2026-11-06 14:40 Second task\n"
+	if err := os.WriteFile(tasksFile, []byte(content), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	tasks, err := ScanTasks(tasksFile, nil)
+	if err != nil {
+		t.Fatalf("ScanTasks failed: %v", err)
+	}
+	if len(tasks) != 2 {
+		t.Fatalf("expected 2 tasks, got %d", len(tasks))
+	}
+
+	if !strings.Contains(tasks[0].Text, "Continuation line one") {
+		t.Errorf("expected continuation in task 0, got %q", tasks[0].Text)
+	}
+	if !strings.Contains(tasks[0].Text, "Continuation line two") {
+		t.Errorf("expected continuation 2 in task 0, got %q", tasks[0].Text)
+	}
+}

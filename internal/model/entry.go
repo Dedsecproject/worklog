@@ -29,7 +29,16 @@ func (e Entry) Markdown() string {
 	if len(e.Tags) > 0 {
 		tagsStr = " " + strings.Join(e.Tags, " ")
 	}
-	return fmt.Sprintf("- %s %s%s\n", dateStr, e.Text, tagsStr)
+
+	lines := strings.Split(e.Text, "\n")
+	res := fmt.Sprintf("- %s %s%s\n", dateStr, lines[0], tagsStr)
+	for i := 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed != "" {
+			res += fmt.Sprintf("  %s\n", trimmed)
+		}
+	}
+	return res
 }
 
 // ParseEntry parses a markdown bullet line into an Entry.

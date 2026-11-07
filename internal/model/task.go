@@ -65,7 +65,15 @@ func (t Task) Markdown() string {
 		tagsStr = " " + strings.Join(t.Tags, " ")
 	}
 
-	return fmt.Sprintf("- %s %s %s%s%s\n", box, dateStr, t.Text, doneStr, tagsStr)
+	lines := strings.Split(t.Text, "\n")
+	res := fmt.Sprintf("- %s %s %s%s%s\n", box, dateStr, lines[0], doneStr, tagsStr)
+	for i := 1; i < len(lines); i++ {
+		trimmed := strings.TrimSpace(lines[i])
+		if trimmed != "" {
+			res += fmt.Sprintf("  %s\n", trimmed)
+		}
+	}
+	return res
 }
 
 // Toggle advances the task status: todo -> doing -> done -> todo.

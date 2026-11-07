@@ -57,7 +57,7 @@ func PrintHeader(w io.Writer, title string) {
 	fmt.Fprintf(w, "\n%s%s=== %s ===%s\n", colorBold, colorCyan, title, colorReset)
 }
 
-// FormatTaskLine formats a task for terminal display.
+// FormatTaskLine formats a task with aligned checkbox status and hanging indents for multi-line text.
 func FormatTaskLine(t *model.Task, showLineNumber bool) string {
 	var box string
 	var statusColor string
@@ -74,19 +74,28 @@ func FormatTaskLine(t *model.Task, showLineNumber bool) string {
 		statusColor = colorYellow
 	}
 
-	linePrefix := ""
+	var linePrefix string
+	indentLen := 0
+
 	if showLineNumber && t.LineNumber > 0 {
 		fileIndicator := ""
 		if strings.HasSuffix(t.FilePath, "journal.md") {
 			fileIndicator = "j:"
 		}
-		linePrefix = fmt.Sprintf("%s#%s%-3d%s ", colorGray, fileIndicator, t.LineNumber, colorReset)
+		rawPrefix := fmt.Sprintf("#%s%d", fileIndicator, t.LineNumber)
+		// Fixed 6-character width for line prefix so checkboxes always align
+		linePrefix = fmt.Sprintf("%s%-6s%s ", colorGray, rawPrefix, colorReset)
+		indentLen += 7
 	}
 
-	timeStr := ""
+	coloredBox := fmt.Sprintf("%s%s%s ", statusColor, box, colorReset)
+	indentLen += 4
+
+	timeStr := "      "
 	if !t.CreatedAt.IsZero() {
 		timeStr = fmt.Sprintf("%s%s%s ", colorDim, t.CreatedAt.Format("15:04"), colorReset)
 	}
+	indentLen += 6
 
 	doneStr := ""
 	if t.CompletedAt != nil {
@@ -98,27 +107,76 @@ func FormatTaskLine(t *model.Task, showLineNumber bool) string {
 		tagsStr = fmt.Sprintf(" %s%s%s", colorCyan, strings.Join(t.Tags, " "), colorReset)
 	}
 
-	return fmt.Sprintf("%s%s%s%s %s%s%s%s", linePrefix, statusColor, box, colorReset, timeStr, t.Text, doneStr, tagsStr)
-}
+	lines := strings.Split(t.Text, "\n")
+	hangingIndent := strings.Repeat(" ", indentLen)
 
-// FormatEntryLine formats a journal entry for terminal display.
-func FormatEntryLine(e *model.Entry, showLineNumber bool) string {
-	linePrefix := ""
-	if showLineNumber && e.LineNumber > 0 {
-		linePrefix = fmt.Sprintf("%s#%-3d%s ", colorGray, e.LineNumber, colorReset)
+	var sb strings.Builder
+	sb.WriteString(linePrefix)
+	sb.WriteString(coloredBox)
+	sb.WriteString(timeStr)
+	sb.WriteString(lines[0])
+	sb.WriteString(doneStr)
+	sb.WriteString(tagsStr)
+
+	// Hanging indent for multi-line tasks
+	for i := 1; i < len(lines); i++ {
+		trimmedLine := strings.TrimSpace(lines[i])
+		if trimmedLine != "" {
+			sb.WriteString("\n")
+			sb.WriteString(hangingIndent)
+			sb.WriteString(trimmedLine)
+		}
 	}
 
-	timeStr := ""
+	return sb.String()
+}
+
+// FormatEntryLine formats a journal entry with aligned bullet and hanging indents for multi-line text.
+func FormatEntryLine(e *model.Entry, showLineNumber bool) string {
+	var linePrefix string
+	indentLen := 0
+
+	if showLineNumber && e.LineNumber > 0 {
+		rawPrefix := fmt.Sprintf("#%d", e.LineNumber)
+		linePrefix = fmt.Sprintf("%s%-6s%s ", colorGray, rawPrefix, colorReset)
+		indentLen += 7
+	}
+
+	bulletStr := fmt.Sprintf("%s•%s ", colorCyan, colorReset)
+	indentLen += 2
+
+	timeStr := "      "
 	if !e.Timestamp.IsZero() {
 		timeStr = fmt.Sprintf("%s%s%s ", colorDim, e.Timestamp.Format("15:04"), colorReset)
 	}
+	indentLen += 6
 
 	tagsStr := ""
 	if len(e.Tags) > 0 {
 		tagsStr = fmt.Sprintf(" %s%s%s", colorCyan, strings.Join(e.Tags, " "), colorReset)
 	}
 
-	return fmt.Sprintf("%s%s•%s %s%s%s", linePrefix, colorCyan, colorReset, timeStr, e.Text, tagsStr)
+	lines := strings.Split(e.Text, "\n")
+	hangingIndent := strings.Repeat(" ", indentLen)
+
+	var sb strings.Builder
+	sb.WriteString(linePrefix)
+	sb.WriteString(bulletStr)
+	sb.WriteString(timeStr)
+	sb.WriteString(lines[0])
+	sb.WriteString(tagsStr)
+
+	// Hanging indent for multi-line entries
+	for i := 1; i < len(lines); i++ {
+		trimmedLine := strings.TrimSpace(lines[i])
+		if trimmedLine != "" {
+			sb.WriteString("\n")
+			sb.WriteString(hangingIndent)
+			sb.WriteString(trimmedLine)
+		}
+	}
+
+	return sb.String()
 }
 
 // RenderTasks prints a slice of tasks.
