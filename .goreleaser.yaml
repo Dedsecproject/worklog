@@ -35,7 +35,7 @@ brews:
       owner: Dedsecproject
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    folder: Formula
+    directory: Formula
     homepage: "https://github.com/Dedsecproject/worklog"
     description: "Instant terminal logger for tasks and thoughts with Obsidian compatibility"
     license: "MIT"
