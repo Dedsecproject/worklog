@@ -172,3 +172,35 @@ func TestMultilineTaskScanning(t *testing.T) {
 		t.Errorf("expected continuation 2 in task 0, got %q", tasks[0].Text)
 	}
 }
+
+func TestCommentSkipping(t *testing.T) {
+	tempDir := t.TempDir()
+	journalFile := filepath.Join(tempDir, "journal.md")
+
+	content := `<!-- Global comment header -->
+- 2026-11-06 14:30 First valid entry
+<!-- - 2026-11-06 14:35 Commented out entry -->
+- 2026-11-06 14:40 Second valid entry
+<!--
+multi-line
+comment
+-->
+`
+	if err := os.WriteFile(journalFile, []byte(content), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	entries, err := ScanEntries(journalFile, nil)
+	if err != nil {
+		t.Fatalf("ScanEntries failed: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	if entries[0].Text != "First valid entry" {
+		t.Errorf("entry 0 got %q, want 'First valid entry'", entries[0].Text)
+	}
+	if entries[1].Text != "Second valid entry" {
+		t.Errorf("entry 1 got %q, want 'Second valid entry'", entries[1].Text)
+	}
+}

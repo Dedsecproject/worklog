@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 	"worklog/internal/model"
@@ -71,6 +72,54 @@ Examples:
 	},
 }
 
+var (
+	mdCommentRegex         = regexp.MustCompile(`(?s)<!--.*?-->`)
+	mdUnclosedCommentRegex = regexp.MustCompile(`(?s)<!--.*$`)
+)
+
+// parseNoteContent strips markdown comments (<!-- ... -->) and empty lines,
+// extracts tags, and returns the cleaned multi-line text and tags.
+func parseNoteContent(rawContent string) (string, []string) {
+	// Strip markdown comments
+	cleaned := mdCommentRegex.ReplaceAllString(rawContent, "")
+	cleaned = mdUnclosedCommentRegex.ReplaceAllString(cleaned, "")
+
+	var lines []string
+	scanner := bufio.NewScanner(strings.NewReader(cleaned))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || line == "-->" || strings.HasPrefix(line, "<!--") {
+			continue
+		}
+		lines = append(lines, line)
+	}
+
+	if len(lines) == 0 {
+		return "", nil
+	}
+
+	fullText := strings.Join(lines, "\n")
+	tags := model.ExtractTags(fullText)
+
+	var cleanedLines []string
+	for _, l := range lines {
+		lineClean := l
+		for _, tag := range tags {
+			lineClean = strings.ReplaceAll(lineClean, tag, "")
+		}
+		lineClean = strings.TrimSpace(lineClean)
+		if lineClean != "" {
+			cleanedLines = append(cleanedLines, lineClean)
+		}
+	}
+
+	if len(cleanedLines) == 0 {
+		return "", tags
+	}
+
+	return strings.Join(cleanedLines, "\n"), tags
+}
+
 var noteCmd = &cobra.Command{
 	Use:     "note",
 	Short:   "Compose multi-line entry in $EDITOR",
@@ -85,7 +134,7 @@ var noteCmd = &cobra.Command{
 		tempPath := tempFile.Name()
 		defer os.Remove(tempPath)
 
-		header := "# Enter your note below. Lines starting with '#' will be ignored unless they are hashtags.\n\n"
+		header := "<!-- Enter your note below. Markdown comments (like this) will be ignored. -->\n\n"
 		if _, err := tempFile.WriteString(header); err != nil {
 			tempFile.Close()
 			return err
@@ -107,35 +156,13 @@ var noteCmd = &cobra.Command{
 			return fmt.Errorf("failed reading note: %w", err)
 		}
 
-		var lines []string
-		scanner := bufio.NewScanner(strings.NewReader(string(data)))
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" || (strings.HasPrefix(line, "#") && !strings.Contains(line, " ")) {
-				// skip comments or empty lines
-				if strings.HasPrefix(line, "# ") {
-					continue
-				}
-			}
-			if line != "" {
-				lines = append(lines, line)
-			}
-		}
-
-		if len(lines) == 0 {
+		cleanedText, tags := parseNoteContent(string(data))
+		if cleanedText == "" && len(tags) == 0 {
 			fmt.Println("Empty note, nothing logged.")
 			return nil
 		}
 
-		combinedText := strings.Join(lines, " ")
 		now := time.Now()
-		tags := model.ExtractTags(combinedText)
-		cleanedText := combinedText
-		for _, tag := range tags {
-			cleanedText = strings.ReplaceAll(cleanedText, tag, "")
-		}
-		cleanedText = strings.Join(strings.Fields(cleanedText), " ")
-
 		entry := &model.Entry{
 			Timestamp: now,
 			Text:      cleanedText,

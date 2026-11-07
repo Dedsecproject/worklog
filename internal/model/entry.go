@@ -58,6 +58,7 @@ func ParseEntry(line string, lineNumber int) (*Entry, error) {
 	}
 
 	content := strings.TrimSpace(trimmedLeading[len(prefixMatch[0]):])
+	content = StripMarkdownComments(content)
 
 	var timestamp time.Time
 	if len(content) >= 16 {

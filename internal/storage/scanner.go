@@ -32,7 +32,8 @@ func ScanTasks(filePath string, filter TaskFilter) ([]*model.Task, error) {
 	for scanner.Scan() {
 		lineNumber++
 		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "<!--") || strings.HasSuffix(trimmed, "-->") {
 			continue
 		}
 
@@ -92,7 +93,8 @@ func ScanEntries(filePath string, filter EntryFilter) ([]*model.Entry, error) {
 	for scanner.Scan() {
 		lineNumber++
 		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "<!--") || strings.HasSuffix(trimmed, "-->") {
 			continue
 		}
 
@@ -170,7 +172,8 @@ func TailLines(filePath string, n int) ([]string, error) {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "<!--") || strings.HasSuffix(trimmed, "-->") {
 			continue
 		}
 		ringBuffer = append(ringBuffer, line)

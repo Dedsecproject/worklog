@@ -24,7 +24,13 @@ var (
 	tagRegex         = regexp.MustCompile(`#[a-zA-Z0-9_\-]+`)
 	doneTagRegex     = regexp.MustCompile(`\(done:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\)`)
 	taskPrefixRegex  = regexp.MustCompile(`^-\s*\[(\s*|\/|x|X|-)\]\s*`)
+	mdCommentRegex   = regexp.MustCompile(`(?s)<!--.*?-->`)
 )
+
+// StripMarkdownComments removes markdown comments <!-- ... --> from a string.
+func StripMarkdownComments(s string) string {
+	return mdCommentRegex.ReplaceAllString(s, "")
+}
 
 type Task struct {
 	FilePath    string
@@ -140,6 +146,7 @@ func ParseTask(line string, lineNumber int) (*Task, error) {
 	}
 
 	content := strings.TrimSpace(trimmedLeading[len(prefixMatch[0]):])
+	content = StripMarkdownComments(content)
 
 	// Check if content starts with a timestamp: YYYY-MM-DD HH:MM (16 chars)
 	var createdAt time.Time

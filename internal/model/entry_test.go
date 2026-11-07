@@ -35,6 +35,13 @@ func TestParseEntry(t *testing.T) {
 			expectErr: false,
 		},
 		{
+			name:      "Entry with embedded markdown comment",
+			input:     "- 2026-11-06 14:35 Clean text <!-- hidden comment --> #tag",
+			wantText:  "Clean text",
+			wantTags:  []string{"#tag"},
+			expectErr: false,
+		},
+		{
 			name:      "Invalid format",
 			input:     "just plain text",
 			expectErr: true,
