@@ -16,13 +16,26 @@ builds:
 archives:
   - format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md*
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
 
 brews:
   - repository:
-      owner: punisher41
+      owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
     folder: Formula
-    homepage: "https://github.com/punisher41/worklog"
+    homepage: "https://github.com/{{ .Env.GITHUB_REPOSITORY }}"
     description: "Instant terminal logger for tasks and thoughts with Obsidian compatibility"
     license: "MIT"
