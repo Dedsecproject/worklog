@@ -44,10 +44,10 @@ func showDate(targetDate time.Time) error {
 		if isToday && t.Status == model.StatusDoing {
 			return true
 		}
-		if t.CreatedAt.Format("2006-01-02") == targetDateStr {
+		if !t.CreatedAt.IsZero() && t.CreatedAt.Format("2006-01-02") == targetDateStr {
 			return true
 		}
-		if t.CompletedAt != nil && t.CompletedAt.Format("2006-01-02") == targetDateStr {
+		if t.CompletedAt != nil && !t.CompletedAt.IsZero() && t.CompletedAt.Format("2006-01-02") == targetDateStr {
 			return true
 		}
 		return false
@@ -117,7 +117,7 @@ var weekCmd = &cobra.Command{
 		}
 
 		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
-			return t.CreatedAt.Format("2006-01-02") >= startStr || t.Status == model.StatusDoing
+			return (!t.CreatedAt.IsZero() && t.CreatedAt.Format("2006-01-02") >= startStr) || t.Status == model.StatusDoing
 		})
 		if err != nil {
 			return err
@@ -168,7 +168,7 @@ var monthCmd = &cobra.Command{
 		}
 
 		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
-			return strings.HasPrefix(t.CreatedAt.Format("2006-01-02"), monthPrefix)
+			return !t.CreatedAt.IsZero() && strings.HasPrefix(t.CreatedAt.Format("2006-01-02"), monthPrefix)
 		})
 		if err != nil {
 			return err

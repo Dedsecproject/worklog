@@ -115,3 +115,42 @@ func TestSetAndGetValue(t *testing.T) {
 		t.Errorf("expected error on invalid key, got nil")
 	}
 }
+
+func TestSaveDoesNotOverwritePersistedVaultWithFlag(t *testing.T) {
+	tempDir := t.TempDir()
+	configFile := filepath.Join(tempDir, "config.json")
+	t.Setenv("WORKLOG_CONFIG", configFile)
+
+	// Save an original config with vault /saved/vault
+	initialCfg := &Config{
+		ConfigPath: configFile,
+	}
+	_ = initialCfg.SetValue("vault_path", "/saved/vault")
+	if err := initialCfg.Save(); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	// Now load with a CLI override flag: --path /override/path
+	loadedCfg, err := Load("/override/path")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if loadedCfg.VaultPath != "/override/path" {
+		t.Errorf("expected runtime VaultPath to be /override/path, got %q", loadedCfg.VaultPath)
+	}
+
+	// Simulate auto-archive saving config
+	loadedCfg.LastArchiveCheck = "2026-11"
+	if err := loadedCfg.Save(); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	// Re-load without flag and verify the persisted vault path is STILL /saved/vault!
+	reloadedCfg, err := Load("")
+	if err != nil {
+		t.Fatalf("reloaded Load failed: %v", err)
+	}
+	if reloadedCfg.VaultPath != "/saved/vault" {
+		t.Errorf("CLI flag override leaked into config.json! Got %q, want /saved/vault", reloadedCfg.VaultPath)
+	}
+}

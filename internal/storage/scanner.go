@@ -27,6 +27,7 @@ func ScanTasks(filePath string, filter TaskFilter) ([]*model.Task, error) {
 
 	var tasks []*model.Task
 	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
 	lineNumber := 0
 
 	for scanner.Scan() {
@@ -88,6 +89,7 @@ func ScanEntries(filePath string, filter EntryFilter) ([]*model.Entry, error) {
 
 	var entries []*model.Entry
 	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
 	lineNumber := 0
 
 	for scanner.Scan() {
@@ -169,6 +171,7 @@ func TailLines(filePath string, n int) ([]string, error) {
 
 	var ringBuffer []string
 	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
 
 	for scanner.Scan() {
 		line := scanner.Text()

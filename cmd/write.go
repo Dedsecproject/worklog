@@ -50,18 +50,7 @@ Examples:
 
 		text := strings.TrimSpace(strings.Join(args, " "))
 		now := time.Now()
-		tags := model.ExtractTags(text)
-		cleanedText := text
-		for _, tag := range tags {
-			cleanedText = strings.ReplaceAll(cleanedText, tag, "")
-		}
-		cleanedText = strings.Join(strings.Fields(cleanedText), " ")
-
-		entry := &model.Entry{
-			Timestamp: now,
-			Text:      cleanedText,
-			Tags:      tags,
-		}
+		entry := model.NewEntry(text, now)
 
 		if err := storage.AppendEntry(cfg.JournalFilePath(), entry); err != nil {
 			return fmt.Errorf("failed to append entry: %w", err)
@@ -99,25 +88,7 @@ func parseNoteContent(rawContent string) (string, []string) {
 	}
 
 	fullText := strings.Join(lines, "\n")
-	tags := model.ExtractTags(fullText)
-
-	var cleanedLines []string
-	for _, l := range lines {
-		lineClean := l
-		for _, tag := range tags {
-			lineClean = strings.ReplaceAll(lineClean, tag, "")
-		}
-		lineClean = strings.TrimSpace(lineClean)
-		if lineClean != "" {
-			cleanedLines = append(cleanedLines, lineClean)
-		}
-	}
-
-	if len(cleanedLines) == 0 {
-		return "", tags
-	}
-
-	return strings.Join(cleanedLines, "\n"), tags
+	return model.SplitTags(fullText)
 }
 
 var noteCmd = &cobra.Command{

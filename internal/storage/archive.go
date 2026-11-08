@@ -30,7 +30,7 @@ func CompletionMonth(t *model.Task) string {
 	if !t.CreatedAt.IsZero() {
 		return t.CreatedAt.Format("2006-01")
 	}
-	return time.Now().Format("2006-01")
+	return ""
 }
 
 // FindPastMonths scans journal.md and tasks.md and returns a sorted slice of past YYYY-MM months (strictly < currentMonth).
@@ -43,9 +43,11 @@ func FindPastMonths(journalPath, tasksPath string, now time.Time) ([]string, err
 		return nil, err
 	}
 	for _, e := range entries {
-		m := e.Timestamp.Format("2006-01")
-		if m < currentMonth {
-			monthSet[m] = true
+		if !e.Timestamp.IsZero() {
+			m := e.Timestamp.Format("2006-01")
+			if m != "" && m < currentMonth {
+				monthSet[m] = true
+			}
 		}
 	}
 
@@ -56,7 +58,7 @@ func FindPastMonths(journalPath, tasksPath string, now time.Time) ([]string, err
 	for _, t := range tasks {
 		if t.Status == model.StatusDone {
 			m := CompletionMonth(t)
-			if m < currentMonth {
+			if m != "" && m < currentMonth {
 				monthSet[m] = true
 			}
 		}
@@ -110,7 +112,7 @@ func ConsolidateMonth(vaultDir, archiveSubdir, targetMonth string, dryRun bool, 
 		return nil, err
 	}
 	for _, e := range entries {
-		if e.Timestamp.Format("2006-01") == targetMonth {
+		if !e.Timestamp.IsZero() && e.Timestamp.Format("2006-01") == targetMonth {
 			journalToArchive = append(journalToArchive, e)
 			span := strings.Count(e.RawLine, "\n") + 1
 			for l := e.LineNumber; l < e.LineNumber+span; l++ {
@@ -190,64 +192,103 @@ func ConsolidateMonth(vaultDir, archiveSubdir, targetMonth string, dryRun bool, 
 	return summary, nil
 }
 
-// WriteArchiveFile writes or merges tasks and journal entries into an archive markdown file.
+// WriteArchiveFile writes or merges tasks and journal entries into an archive markdown file atomically.
 func WriteArchiveFile(filePath, month string, tasks []*model.Task, entries []*model.Entry) error {
 	existingBytes, err := os.ReadFile(filePath)
-	if os.IsNotExist(err) {
-		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("# %s Archive\n\n", month))
-		if len(tasks) > 0 {
-			sb.WriteString("## Completed Tasks\n")
-			for _, t := range tasks {
-				sb.WriteString(t.Markdown())
-			}
-			sb.WriteString("\n")
-		}
-		if len(entries) > 0 {
-			sb.WriteString("## Journal Entries\n")
-			for _, e := range entries {
-				sb.WriteString(e.Markdown())
-			}
-			sb.WriteString("\n")
-		}
-		return os.WriteFile(filePath, []byte(sb.String()), 0644)
-	} else if err != nil {
+	var content string
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
-	content := string(existingBytes)
+	if len(existingBytes) > 0 {
+		content = string(existingBytes)
+	} else {
+		content = fmt.Sprintf("# %s Archive\n\n", month)
+	}
 
-	// Append tasks
+	// Append tasks to "## Completed Tasks" section
 	if len(tasks) > 0 {
-		var tasksSB strings.Builder
+		var newTasksSB strings.Builder
 		for _, t := range tasks {
-			tasksSB.WriteString(t.Markdown())
-		}
-		if strings.Contains(content, "## Completed Tasks") {
-			content = strings.Replace(content, "## Completed Tasks\n", "## Completed Tasks\n"+tasksSB.String(), 1)
-		} else {
-			if !strings.HasSuffix(content, "\n") {
-				content += "\n"
+			md := t.Markdown()
+			if !strings.Contains(content, strings.TrimSpace(md)) {
+				newTasksSB.WriteString(md)
 			}
-			content += "\n## Completed Tasks\n" + tasksSB.String()
+		}
+		newTasksStr := newTasksSB.String()
+		if newTasksStr != "" {
+			if idx := strings.Index(content, "## Completed Tasks"); idx != -1 {
+				// Find where this section ends (either next "## " or end of string)
+				rest := content[idx+len("## Completed Tasks"):]
+				if nextHeader := strings.Index(rest, "\n## "); nextHeader != -1 {
+					insertPos := idx + len("## Completed Tasks") + nextHeader
+					content = content[:insertPos] + "\n" + newTasksStr + content[insertPos:]
+				} else {
+					if !strings.HasSuffix(content, "\n") {
+						content += "\n"
+					}
+					content += newTasksStr
+				}
+			} else {
+				if !strings.HasSuffix(content, "\n") {
+					content += "\n"
+				}
+				content += "\n## Completed Tasks\n" + newTasksStr
+			}
 		}
 	}
 
-	// Append journal entries
+	// Append journal entries to "## Journal Entries" section
 	if len(entries) > 0 {
-		var entriesSB strings.Builder
+		var newEntriesSB strings.Builder
 		for _, e := range entries {
-			entriesSB.WriteString(e.Markdown())
-		}
-		if strings.Contains(content, "## Journal Entries") {
-			content = strings.Replace(content, "## Journal Entries\n", "## Journal Entries\n"+entriesSB.String(), 1)
-		} else {
-			if !strings.HasSuffix(content, "\n") {
-				content += "\n"
+			md := e.Markdown()
+			if !strings.Contains(content, strings.TrimSpace(md)) {
+				newEntriesSB.WriteString(md)
 			}
-			content += "\n## Journal Entries\n" + entriesSB.String()
+		}
+		newEntriesStr := newEntriesSB.String()
+		if newEntriesStr != "" {
+			if idx := strings.Index(content, "## Journal Entries"); idx != -1 {
+				rest := content[idx+len("## Journal Entries"):]
+				if nextHeader := strings.Index(rest, "\n## "); nextHeader != -1 {
+					insertPos := idx + len("## Journal Entries") + nextHeader
+					content = content[:insertPos] + "\n" + newEntriesStr + content[insertPos:]
+				} else {
+					if !strings.HasSuffix(content, "\n") {
+						content += "\n"
+					}
+					content += newEntriesStr
+				}
+			} else {
+				if !strings.HasSuffix(content, "\n") {
+					content += "\n"
+				}
+				content += "\n## Journal Entries\n" + newEntriesStr
+			}
 		}
 	}
 
-	return os.WriteFile(filePath, []byte(content), 0644)
+	// Atomic write
+	dir := filepath.Dir(filePath)
+	tempFile, err := os.CreateTemp(dir, "archive-*.tmp")
+	if err != nil {
+		return fmt.Errorf("failed creating temp archive file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	defer func() {
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
+	}()
+
+	_ = os.Chmod(tempPath, 0644)
+	if _, err := tempFile.WriteString(content); err != nil {
+		return err
+	}
+	_ = tempFile.Sync()
+	if err := tempFile.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tempPath, filePath)
 }

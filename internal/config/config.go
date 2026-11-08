@@ -24,6 +24,7 @@ type Config struct {
 	ArchiveDir       string `json:"archive_dir,omitempty"`
 	LastArchiveCheck string `json:"last_archive_check,omitempty"`
 	ConfigPath       string `json:"-"`
+	PersistedVault   string `json:"-"`
 }
 
 // ExpandPath expands leading ~ to the current user's home directory.
@@ -75,6 +76,7 @@ func Load(flagPath string) (*Config, error) {
 			if err := json.Unmarshal(fileData, &fileCfg); err == nil {
 				if fileCfg.VaultPath != "" {
 					cfg.VaultPath = fileCfg.VaultPath
+					cfg.PersistedVault = fileCfg.VaultPath
 				}
 				if fileCfg.DefaultEditor != "" {
 					cfg.DefaultEditor = fileCfg.DefaultEditor
@@ -207,6 +209,7 @@ func (c *Config) SetValue(key, value string) error {
 			return err
 		}
 		c.VaultPath = expanded
+		c.PersistedVault = expanded
 	case "default_editor", "editor":
 		c.DefaultEditor = value
 	case "date_format":
@@ -267,7 +270,10 @@ func (c *Config) Save() error {
 		return err
 	}
 
-	data, err := json.MarshalIndent(c, "", "  ")
+	toSave := *c
+	toSave.VaultPath = c.PersistedVault
+
+	data, err := json.MarshalIndent(&toSave, "", "  ")
 	if err != nil {
 		return err
 	}

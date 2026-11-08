@@ -125,6 +125,15 @@ func TestAtomicMutations(t *testing.T) {
 	if len(tasks) != 1 {
 		t.Fatalf("expected 1 task remaining, got %d", len(tasks))
 	}
+
+	// Verify file permissions are preserved (0644, not downgraded to 0600 by tempfile)
+	info, err := os.Stat(tasksFile)
+	if err != nil {
+		t.Fatalf("Stat failed: %v", err)
+	}
+	if info.Mode().Perm() != 0644 {
+		t.Errorf("expected file mode 0644, got %o", info.Mode().Perm())
+	}
 }
 
 func TestTailLines(t *testing.T) {

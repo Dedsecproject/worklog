@@ -20,18 +20,17 @@ type Entry struct {
 
 // Markdown formats the entry as a bulleted text entry.
 func (e Entry) Markdown() string {
-	ts := e.Timestamp
-	if ts.IsZero() {
-		ts = time.Now()
+	dateStr := ""
+	if !e.Timestamp.IsZero() {
+		dateStr = e.Timestamp.Format(TimestampFormat) + " "
 	}
-	dateStr := ts.Format(TimestampFormat)
 	tagsStr := ""
 	if len(e.Tags) > 0 {
 		tagsStr = " " + strings.Join(e.Tags, " ")
 	}
 
 	lines := strings.Split(e.Text, "\n")
-	res := fmt.Sprintf("- %s %s%s\n", dateStr, lines[0], tagsStr)
+	res := fmt.Sprintf("- %s%s%s\n", dateStr, lines[0], tagsStr)
 	for i := 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
 		if trimmed != "" {
@@ -60,27 +59,9 @@ func ParseEntry(line string, lineNumber int) (*Entry, error) {
 	content := strings.TrimSpace(trimmedLeading[len(prefixMatch[0]):])
 	content = StripMarkdownComments(content)
 
-	var timestamp time.Time
-	if len(content) >= 16 {
-		potentialDate := content[:16]
-		if t, err := time.ParseInLocation(TimestampFormat, potentialDate, time.Local); err == nil {
-			timestamp = t
-			content = strings.TrimSpace(content[16:])
-		}
-	}
+	timestamp, content := parseLeadingTimestamp(content)
 
-	// If no timestamp was found in line, default to current time
-	if timestamp.IsZero() {
-		timestamp = time.Now()
-	}
-
-	tags := ExtractTags(content)
-
-	cleanedText := content
-	for _, tag := range tags {
-		cleanedText = strings.ReplaceAll(cleanedText, tag, "")
-	}
-	cleanedText = strings.Join(strings.Fields(cleanedText), " ")
+	cleanedText, tags := SplitTags(content)
 
 	return &Entry{
 		RawLine:    line,

@@ -43,6 +43,9 @@ Examples:
 
 		if len(args) > 0 {
 			targetMonth := args[0]
+			if _, err := time.Parse("2006-01", targetMonth); err != nil {
+				return fmt.Errorf("invalid month format %q; use YYYY-MM", targetMonth)
+			}
 			summary, err := storage.ConsolidateMonth(cfg.VaultPath, archiveSubdir, targetMonth, dryRunArchive, now)
 			if err != nil {
 				return err

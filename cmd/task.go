@@ -51,25 +51,7 @@ Examples:
 		}
 
 		now := time.Now()
-		var completedAt *time.Time
-		if status == model.StatusDone {
-			completedAt = &now
-		}
-
-		tags := model.ExtractTags(rawText)
-		cleanedText := rawText
-		for _, tag := range tags {
-			cleanedText = strings.ReplaceAll(cleanedText, tag, "")
-		}
-		cleanedText = strings.Join(strings.Fields(cleanedText), " ")
-
-		task := &model.Task{
-			Status:      status,
-			CreatedAt:   now,
-			CompletedAt: completedAt,
-			Text:        cleanedText,
-			Tags:        tags,
-		}
+		task := model.NewTask(rawText, status, now)
 
 		if err := storage.AppendTask(cfg.TasksFilePath(), task); err != nil {
 			return fmt.Errorf("failed to save task: %w", err)
@@ -115,20 +97,7 @@ var doneCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		rawText := strings.TrimSpace(strings.Join(args, " "))
 		now := time.Now()
-		tags := model.ExtractTags(rawText)
-		cleanedText := rawText
-		for _, tag := range tags {
-			cleanedText = strings.ReplaceAll(cleanedText, tag, "")
-		}
-		cleanedText = strings.Join(strings.Fields(cleanedText), " ")
-
-		task := &model.Task{
-			Status:      model.StatusDone,
-			CreatedAt:   now,
-			CompletedAt: &now,
-			Text:        cleanedText,
-			Tags:        tags,
-		}
+		task := model.NewTask(rawText, model.StatusDone, now)
 
 		if err := storage.AppendTask(cfg.TasksFilePath(), task); err != nil {
 			return fmt.Errorf("failed to save task: %w", err)
@@ -160,19 +129,7 @@ var doingCmd = &cobra.Command{
 		// Add new in-progress task
 		rawText := strings.TrimSpace(strings.Join(args, " "))
 		now := time.Now()
-		tags := model.ExtractTags(rawText)
-		cleanedText := rawText
-		for _, tag := range tags {
-			cleanedText = strings.ReplaceAll(cleanedText, tag, "")
-		}
-		cleanedText = strings.Join(strings.Fields(cleanedText), " ")
-
-		task := &model.Task{
-			Status:    model.StatusDoing,
-			CreatedAt: now,
-			Text:      cleanedText,
-			Tags:      tags,
-		}
+		task := model.NewTask(rawText, model.StatusDoing, now)
 
 		if err := storage.AppendTask(cfg.TasksFilePath(), task); err != nil {
 			return fmt.Errorf("failed to save task: %w", err)

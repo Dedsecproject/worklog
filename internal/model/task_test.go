@@ -48,6 +48,22 @@ func TestParseTask(t *testing.T) {
 			wantDone:   false,
 		},
 		{
+			name:       "Legacy trailing timestamp format",
+			input:      "- [/] Created a raycast extension to interact with Recall [2026-10-24T14]",
+			wantStatus: StatusDoing,
+			wantText:   "Created a raycast extension to interact with Recall",
+			wantTags:   nil,
+			wantDone:   false,
+		},
+		{
+			name:       "Undated task without timestamp",
+			input:      "- [ ] Clean task without any timestamp",
+			wantStatus: StatusTodo,
+			wantText:   "Clean task without any timestamp",
+			wantTags:   nil,
+			wantDone:   false,
+		},
+		{
 			name:      "Invalid line",
 			input:     "just a random note",
 			expectErr: true,

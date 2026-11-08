@@ -21,7 +21,6 @@ const (
 )
 
 var (
-	tagRegex         = regexp.MustCompile(`#[a-zA-Z0-9_\-]+`)
 	doneTagRegex     = regexp.MustCompile(`\(done:\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\)`)
 	taskPrefixRegex  = regexp.MustCompile(`^-\s*\[(\s*|\/|x|X|-)\]\s*`)
 	mdCommentRegex   = regexp.MustCompile(`(?s)<!--.*?-->`)
@@ -44,6 +43,7 @@ type Task struct {
 }
 
 // Markdown formats the task as a Markdown checkbox entry.
+// Undated tasks (zero CreatedAt) are written without a timestamp rather than being stamped "now".
 func (t Task) Markdown() string {
 	var box string
 	switch t.Status {
@@ -55,11 +55,10 @@ func (t Task) Markdown() string {
 		box = "[ ]"
 	}
 
-	created := t.CreatedAt
-	if created.IsZero() {
-		created = time.Now()
+	dateStr := ""
+	if !t.CreatedAt.IsZero() {
+		dateStr = t.CreatedAt.Format(TimestampFormat) + " "
 	}
-	dateStr := created.Format(TimestampFormat)
 
 	var doneStr string
 	if t.CompletedAt != nil {
@@ -72,7 +71,7 @@ func (t Task) Markdown() string {
 	}
 
 	lines := strings.Split(t.Text, "\n")
-	res := fmt.Sprintf("- %s %s %s%s%s\n", box, dateStr, lines[0], doneStr, tagsStr)
+	res := fmt.Sprintf("- %s %s%s%s%s\n", box, dateStr, lines[0], doneStr, tagsStr)
 	for i := 1; i < len(lines); i++ {
 		trimmed := strings.TrimSpace(lines[i])
 		if trimmed != "" {
@@ -100,23 +99,6 @@ func (t *Task) Toggle(now time.Time) {
 		t.Status = StatusTodo
 		t.CompletedAt = nil
 	}
-}
-
-// ExtractTags finds all hashtags matching #[a-zA-Z0-9_\-]+
-func ExtractTags(s string) []string {
-	matches := tagRegex.FindAllString(s, -1)
-	if len(matches) == 0 {
-		return nil
-	}
-	seen := make(map[string]bool)
-	var tags []string
-	for _, match := range matches {
-		if !seen[match] {
-			seen[match] = true
-			tags = append(tags, match)
-		}
-	}
-	return tags
 }
 
 // ParseTask parses a line into a Task.
@@ -148,20 +130,7 @@ func ParseTask(line string, lineNumber int) (*Task, error) {
 	content := strings.TrimSpace(trimmedLeading[len(prefixMatch[0]):])
 	content = StripMarkdownComments(content)
 
-	// Check if content starts with a timestamp: YYYY-MM-DD HH:MM (16 chars)
-	var createdAt time.Time
-	if len(content) >= 16 {
-		potentialDate := content[:16]
-		if t, err := time.ParseInLocation(TimestampFormat, potentialDate, time.Local); err == nil {
-			createdAt = t
-			content = strings.TrimSpace(content[16:])
-		}
-	}
-
-	// If no timestamp was in the line, default to current time so it is not lost to year 0001
-	if createdAt.IsZero() {
-		createdAt = time.Now()
-	}
+	createdAt, content := parseLeadingTimestamp(content)
 
 	// Check for (done: YYYY-MM-DD HH:MM)
 	var completedAt *time.Time
@@ -172,13 +141,7 @@ func ParseTask(line string, lineNumber int) (*Task, error) {
 		}
 	}
 
-	tags := ExtractTags(content)
-
-	cleanedText := content
-	for _, tag := range tags {
-		cleanedText = strings.ReplaceAll(cleanedText, tag, "")
-	}
-	cleanedText = strings.Join(strings.Fields(cleanedText), " ")
+	cleanedText, tags := SplitTags(content)
 
 	return &Task{
 		RawLine:     line,

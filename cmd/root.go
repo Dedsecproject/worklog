@@ -49,9 +49,6 @@ Direct journal write:
 			return fmt.Errorf("failed to initialize vault directory: %w", err)
 		}
 
-		// Ensure shell completion is installed in the user's rc file without duplication
-		_, _, _ = config.AutoInstallCompletion()
-
 		// Run automatic monthly consolidation check if month has rolled over
 		maybeAutoArchive(cmd)
 
@@ -69,18 +66,7 @@ Direct journal write:
 		}
 
 		now := time.Now()
-		tags := model.ExtractTags(text)
-		cleanedText := text
-		for _, tag := range tags {
-			cleanedText = strings.ReplaceAll(cleanedText, tag, "")
-		}
-		cleanedText = strings.Join(strings.Fields(cleanedText), " ")
-
-		entry := &model.Entry{
-			Timestamp: now,
-			Text:      cleanedText,
-			Tags:      tags,
-		}
+		entry := model.NewEntry(text, now)
 
 		if err := storage.AppendEntry(cfg.JournalFilePath(), entry); err != nil {
 			return fmt.Errorf("failed to append entry: %w", err)
@@ -163,7 +149,7 @@ func maybeAutoArchive(cmd *cobra.Command) {
 		_ = cfg.Save()
 		if len(summaries) > 0 {
 			for _, s := range summaries {
-				ui.PrintDim(os.Stdout, "ℹ Consolidated %s -> %s/%s.md (%d entries, %d completed tasks)\n",
+				ui.PrintDim(os.Stderr, "ℹ Consolidated %s -> %s/%s.md (%d entries, %d completed tasks)\n",
 					s.Month, cfg.GetArchiveDir(), s.Month, s.JournalCount, s.TaskCount)
 			}
 		}

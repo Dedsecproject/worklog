@@ -35,7 +35,15 @@ func MutateFile(filePath string, mutator func(lineNum int, line string) (newLine
 	}
 	defer srcFile.Close()
 
+	// Preserve original file permissions (default to 0644 if stat fails)
+	origPerm := os.FileMode(0644)
+	if srcInfo, err := srcFile.Stat(); err == nil && srcInfo.Mode().Perm() != 0 {
+		origPerm = srcInfo.Mode().Perm()
+	}
+	_ = os.Chmod(tempPath, origPerm)
+
 	scanner := bufio.NewScanner(srcFile)
+	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
 	writer := bufio.NewWriter(tempFile)
 	lineNum := 0
 
@@ -65,6 +73,8 @@ func MutateFile(filePath string, mutator func(lineNum int, line string) (newLine
 	if err := writer.Flush(); err != nil {
 		return fmt.Errorf("failed flushing temp file: %w", err)
 	}
+
+	_ = tempFile.Sync()
 
 	if err := tempFile.Close(); err != nil {
 		return fmt.Errorf("failed closing temp file: %w", err)

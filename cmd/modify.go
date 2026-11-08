@@ -302,12 +302,8 @@ Selectors:
 		if item.IsTask {
 			task := item.Task
 			if newText != "" {
-				tags := model.ExtractTags(newText)
-				cleaned := newText
-				for _, t := range tags {
-					cleaned = strings.ReplaceAll(cleaned, t, "")
-				}
-				task.Text = strings.Join(strings.Fields(cleaned), " ")
+				cleanedText, tags := model.SplitTags(newText)
+				task.Text = cleanedText
 				task.Tags = tags
 				newLine := strings.TrimRight(task.Markdown(), "\n")
 				if err := storage.ReplaceLine(item.FilePath, item.LineNumber, newLine); err != nil {
@@ -336,12 +332,8 @@ Selectors:
 		// Edit journal entry
 		entry := item.Entry
 		if newText != "" {
-			tags := model.ExtractTags(newText)
-			cleaned := newText
-			for _, t := range tags {
-				cleaned = strings.ReplaceAll(cleaned, t, "")
-			}
-			entry.Text = strings.Join(strings.Fields(cleaned), " ")
+			cleanedText, tags := model.SplitTags(newText)
+			entry.Text = cleanedText
 			entry.Tags = tags
 			newLine := strings.TrimRight(entry.Markdown(), "\n")
 			if err := storage.ReplaceLine(item.FilePath, item.LineNumber, newLine); err != nil {
