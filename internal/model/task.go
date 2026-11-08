@@ -18,6 +18,8 @@ const (
 const (
 	TimestampFormat = "2006-01-02 15:04"
 	DateFormat      = "2006-01-02"
+	TasksFileName   = "tasks.md"
+	JournalFileName = "journal.md"
 )
 
 var (

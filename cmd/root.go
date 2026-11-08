@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 	"worklog/internal/config"
-	"worklog/internal/model"
 	"worklog/internal/storage"
 	"worklog/internal/ui"
 
@@ -45,6 +44,12 @@ Direct journal write:
 		if err != nil {
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
+
+		// Skip initializing vault directories for purely informational commands
+		if cmd != nil && (cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version") {
+			return nil
+		}
+
 		if err := cfg.EnsureDir(); err != nil {
 			return fmt.Errorf("failed to initialize vault directory: %w", err)
 		}
@@ -55,25 +60,7 @@ Direct journal write:
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return cmd.Help()
-		}
-
-		// Bare text write: worklog <text...>
-		text := strings.TrimSpace(strings.Join(args, " "))
-		if text == "" {
-			return cmd.Help()
-		}
-
-		now := time.Now()
-		entry := model.NewEntry(text, now)
-
-		if err := storage.AppendEntry(cfg.JournalFilePath(), entry); err != nil {
-			return fmt.Errorf("failed to append entry: %w", err)
-		}
-
-		ui.PrintSuccess(os.Stdout, "Journal entry logged (%s)", now.Format("15:04"))
-		return nil
+		return cmd.Help()
 	},
 }
 

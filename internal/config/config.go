@@ -6,13 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"worklog/internal/model"
 )
 
 const (
 	DefaultDateFormat = "2006-01-02"
 	DefaultTimeFormat = "15:04"
-	TasksFileName     = "tasks.md"
-	JournalFileName   = "journal.md"
+	TasksFileName     = model.TasksFileName
+	JournalFileName   = model.JournalFileName
 )
 
 type Config struct {

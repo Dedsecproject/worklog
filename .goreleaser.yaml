@@ -39,3 +39,5 @@ brews:
     homepage: "https://github.com/Dedsecproject/worklog"
     description: "Instant terminal logger for tasks and thoughts with Obsidian compatibility"
     license: "MIT"
+    extra_install: |
+      generate_completions_from_executable(bin/"worklog", "completion")

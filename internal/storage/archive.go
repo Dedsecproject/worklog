@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	TasksFileName   = "tasks.md"
-	JournalFileName = "journal.md"
+	TasksFileName   = model.TasksFileName
+	JournalFileName = model.JournalFileName
 )
 
 type ArchiveSummary struct {
