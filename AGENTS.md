@@ -1,4 +1,29 @@
-# `worklog` — Architecture, Specification & Implementation Guide
+# `worklog` — Agent & Architecture Specification
+
+## Agent Operational Guidelines & Invariants
+
+When working as an AI agent on this codebase, adhere strictly to the following rules:
+
+1. **Storage Integrity (Plain Text Only):**
+   - Do **NOT** introduce SQLite, embedded key-value stores, or external databases. Plain Markdown files (`tasks.md` and `journal.md`) are the only source of truth.
+   - All entries must remain human-readable and compatible with Obsidian, Dataview, and standard Markdown editors.
+
+2. **Zero-Latency Appends (<15ms):**
+   - Appending to `tasks.md` or `journal.md` MUST use `os.O_APPEND|os.O_CREATE|os.O_WRONLY`.
+   - Never read, parse, or load the entire file into memory just to append an entry.
+
+3. **Data Safety & Atomic Mutations:**
+   - Any destructive or mutating command (`rm`, `edit`, `toggle`, `archive`, `migrate`) MUST create a timestamped backup first using `storage.SaveBackup`.
+   - In-place file rewrites must write to a temporary file in the same directory (`.tmp`) and atomically rename it into place (`os.Rename`), preserving `0644` permissions.
+
+4. **Shell Configuration Safety:**
+   - **NEVER** edit or inject into shell configuration files (`~/.zshrc`, `~/.bashrc`, `~/.config/fish`, etc.) automatically. Suggest configuration instructions to the user instead.
+
+5. **Testing & Quality Assurance:**
+   - Run `go test -v -race -count=1 ./...` to verify all changes before completing a task.
+   - Maintain unit tests for new features and keep memory overhead under 2MB during scans.
+
+---
 
 ## 1. Executive Summary & Vision
 `worklog` is a native terminal CLI tool designed for zero-latency capture of tasks and thoughts to prevent context-switch decay. It writes directly to plain Markdown files (`tasks.md` and `journal.md`) that live inside an Obsidian vault or standalone directory.
