@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,7 +16,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var searchArchiveFlag bool
+var (
+	searchArchiveFlag bool
+	searchTagFlag     string
+	searchJSONFlag    bool
+	tagsJSONFlag      bool
+)
 
 var searchCmd = &cobra.Command{
 	Use:     "search <term>",
@@ -30,6 +36,9 @@ var searchCmd = &cobra.Command{
 		}
 
 		entries, err := storage.ScanEntries(cfg.JournalFilePath(), func(e *model.Entry) bool {
+			if !model.MatchesTag(e.Tags, searchTagFlag) {
+				return false
+			}
 			return re.MatchString(e.Text) || re.MatchString(e.RawLine)
 		})
 		if err != nil {
@@ -37,6 +46,9 @@ var searchCmd = &cobra.Command{
 		}
 
 		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
+			if !model.MatchesTag(t.Tags, searchTagFlag) {
+				return false
+			}
 			return re.MatchString(t.Text) || re.MatchString(t.RawLine)
 		})
 		if err != nil {
@@ -48,16 +60,43 @@ var searchCmd = &cobra.Command{
 			if archiveFiles, err := filepath.Glob(filepath.Join(archiveDir, "*.md")); err == nil {
 				for _, af := range archiveFiles {
 					aEntries, _ := storage.ScanEntries(af, func(e *model.Entry) bool {
+						if !model.MatchesTag(e.Tags, searchTagFlag) {
+							return false
+						}
 						return re.MatchString(e.Text) || re.MatchString(e.RawLine)
 					})
 					entries = append(entries, aEntries...)
 
 					aTasks, _ := storage.ScanTasks(af, func(t *model.Task) bool {
+						if !model.MatchesTag(t.Tags, searchTagFlag) {
+							return false
+						}
 						return re.MatchString(t.Text) || re.MatchString(t.RawLine)
 					})
 					tasks = append(tasks, aTasks...)
 				}
 			}
+		}
+
+		if searchJSONFlag {
+			if entries == nil {
+				entries = []*model.Entry{}
+			}
+			if tasks == nil {
+				tasks = []*model.Task{}
+			}
+			out := struct {
+				Query   string         `json:"query"`
+				Entries []*model.Entry `json:"entries"`
+				Tasks   []*model.Task  `json:"tasks"`
+			}{
+				Query:   pattern,
+				Entries: entries,
+				Tasks:   tasks,
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(out)
 		}
 
 		fmt.Printf("Search results for %q (Journal: %d, Tasks: %d)\n", pattern, len(entries), len(tasks))
@@ -88,6 +127,23 @@ var tagsCmd = &cobra.Command{
 		tags, counts, err := storage.CollectTags(cfg.TasksFilePath(), cfg.JournalFilePath())
 		if err != nil {
 			return err
+		}
+
+		if tagsJSONFlag {
+			type TagStat struct {
+				Tag   string `json:"tag"`
+				Count int    `json:"count"`
+			}
+			var list []TagStat
+			for _, t := range tags {
+				list = append(list, TagStat{Tag: t, Count: counts[t]})
+			}
+			if list == nil {
+				list = []TagStat{}
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(list)
 		}
 
 		if len(tags) == 0 {
@@ -231,6 +287,10 @@ var statsCmd = &cobra.Command{
 
 func init() {
 	searchCmd.Flags().BoolVarP(&searchArchiveFlag, "archive", "a", false, "Include monthly archive files in search")
+	searchCmd.Flags().StringVarP(&searchTagFlag, "tag", "t", "", "Filter search results by tag")
+	searchCmd.Flags().BoolVar(&searchJSONFlag, "json", false, "Output search results as JSON")
+	tagsCmd.Flags().BoolVar(&tagsJSONFlag, "json", false, "Output tags as JSON")
+
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(tagsCmd)
 	rootCmd.AddCommand(tailCmd)

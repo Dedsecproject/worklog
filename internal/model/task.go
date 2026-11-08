@@ -34,14 +34,14 @@ func StripMarkdownComments(s string) string {
 }
 
 type Task struct {
-	FilePath    string
-	RawLine     string
-	LineNumber  int
-	Status      TaskStatus
-	CreatedAt   time.Time
-	CompletedAt *time.Time
-	Text        string
-	Tags        []string
+	FilePath    string     `json:"file,omitempty"`
+	RawLine     string     `json:"raw,omitempty"`
+	LineNumber  int        `json:"line_number"`
+	Status      TaskStatus `json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	Text        string     `json:"text"`
+	Tags        []string   `json:"tags,omitempty"`
 }
 
 // Markdown formats the task as a Markdown checkbox entry.

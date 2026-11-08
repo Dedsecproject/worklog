@@ -79,6 +79,7 @@ var toggleCmd = &cobra.Command{
 		}
 
 		now := time.Now()
+		_ = storage.SaveBackup(cfg.VaultPath, fmt.Sprintf("toggle %s", selector), targetFile)
 		updated, err := storage.ToggleTask(targetFile, task.LineNumber, now)
 		if err != nil {
 			return err

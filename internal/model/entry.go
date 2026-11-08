@@ -10,12 +10,12 @@ import (
 var entryPrefixRegex = regexp.MustCompile(`^-\s*(\[(\s*|\/|x|X|-)\])?\s*`)
 
 type Entry struct {
-	FilePath   string
-	RawLine    string
-	LineNumber int
-	Timestamp  time.Time
-	Text       string
-	Tags       []string
+	FilePath   string    `json:"file,omitempty"`
+	RawLine    string    `json:"raw,omitempty"`
+	LineNumber int       `json:"line_number"`
+	Timestamp  time.Time `json:"timestamp"`
+	Text       string    `json:"text"`
+	Tags       []string  `json:"tags,omitempty"`
 }
 
 // Markdown formats the entry as a bulleted text entry.

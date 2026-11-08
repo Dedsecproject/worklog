@@ -56,3 +56,70 @@ func TestSplitTags(t *testing.T) {
 		})
 	}
 }
+
+func TestMatchesTag(t *testing.T) {
+	tests := []struct {
+		name      string
+		tags      []string
+		filterTag string
+		want      bool
+	}{
+		{
+			name:      "Empty filter matches everything",
+			tags:      []string{"#devops", "#backend"},
+			filterTag: "",
+			want:      true,
+		},
+		{
+			name:      "Exact match without hash",
+			tags:      []string{"#devops", "#backend"},
+			filterTag: "devops",
+			want:      true,
+		},
+		{
+			name:      "Exact match with hash",
+			tags:      []string{"#devops", "#backend"},
+			filterTag: "#backend",
+			want:      true,
+		},
+		{
+			name:      "Case-insensitive match",
+			tags:      []string{"#DevOps"},
+			filterTag: "devops",
+			want:      true,
+		},
+		{
+			name:      "Nested tag match by parent prefix",
+			tags:      []string{"#project/alpha", "#dev"},
+			filterTag: "project",
+			want:      true,
+		},
+		{
+			name:      "Nested tag match with hash",
+			tags:      []string{"#project/alpha"},
+			filterTag: "#project/alpha",
+			want:      true,
+		},
+		{
+			name:      "Non-matching tag",
+			tags:      []string{"#frontend"},
+			filterTag: "backend",
+			want:      false,
+		},
+		{
+			name:      "Empty tags list",
+			tags:      nil,
+			filterTag: "devops",
+			want:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := MatchesTag(tt.tags, tt.filterTag)
+			if got != tt.want {
+				t.Errorf("MatchesTag(%v, %q) = %v, want %v", tt.tags, tt.filterTag, got, tt.want)
+			}
+		})
+	}
+}

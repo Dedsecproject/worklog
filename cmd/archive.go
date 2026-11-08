@@ -41,6 +41,10 @@ Examples:
 		var summaries []storage.ArchiveSummary
 		archiveSubdir := cfg.GetArchiveDir()
 
+		if !dryRunArchive {
+			_ = storage.SaveBackup(cfg.VaultPath, "archive", cfg.JournalFilePath(), cfg.TasksFilePath())
+		}
+
 		if len(args) > 0 {
 			targetMonth := args[0]
 			if _, err := time.Parse("2006-01", targetMonth); err != nil {

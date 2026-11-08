@@ -100,9 +100,43 @@ worklog month           # Current month breakdown
 worklog search "cache"  # Full-text regex search across tasks and journal
 worklog tags            # List all hashtags and frequencies
 worklog stats           # Metrics, active days, and completion rate
+
+# Tag Filtering & Machine-Readable JSON
+worklog tasks --tag devops      # Filter tasks by tag (supports nested tags like #devops/k8s)
+worklog today --tag backend     # Filter today's items by tag
+worklog tasks --json            # JSON output for Raycast, Alfred, or scripts
+worklog today --json            # JSON output for today's entries and tasks
+worklog search "api" --json     # Structured search results in JSON
 ```
 
-### 4. Editing & Deleting
+### 4. Daily Standup
+
+Generate a clean standup summary for Slack, Teams, or your daily notes:
+
+```bash
+worklog standup            # Print completed recently, working on today, and up next
+worklog standup --copy     # Print and copy formatted Markdown to system clipboard (pbcopy/wl-copy/xclip)
+worklog standup --days 3   # Include tasks completed over the last 3 days (auto-detects Monday)
+```
+
+### 5. Undo & Safety Net
+
+Revert the last modifying operation (`rm`, `edit`, `toggle`, `archive`, or `migrate`):
+
+```bash
+worklog undo               # Restores files from snapshot taken prior to mutation
+```
+
+### 6. Data Migration
+
+Upgrade legacy formats or consolidate older notes:
+
+```bash
+worklog migrate --dry-run  # Preview standardization changes
+worklog migrate            # Upgrade legacy trailing timestamps and merge legacy worklog.md
+```
+
+### 7. Editing & Deleting
 
 ```bash
 # Delete by unambiguous prefix
@@ -118,7 +152,7 @@ worklog edit j:1 "Updated note text"
 worklog edit t:1        # Opens task in $EDITOR
 ```
 
-### 5. Configuration & Vault Path
+### 8. Configuration & Vault Path
 
 ```bash
 # View active configuration
@@ -134,7 +168,7 @@ worklog config editor nvim
 worklog config --edit
 ```
 
-### 6. Monthly Archive & Consolidation
+### 9. Monthly Archive & Consolidation
 
 Keep your active files lean while maintaining a full monthly backlog in Obsidian:
 

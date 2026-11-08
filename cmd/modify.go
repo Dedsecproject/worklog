@@ -260,6 +260,8 @@ Selectors:
 			}
 		}
 
+		_ = storage.SaveBackup(cfg.VaultPath, fmt.Sprintf("rm %s", item.Display), item.FilePath)
+
 		_, err = storage.DeleteLine(item.FilePath, item.LineNumber)
 		if err != nil {
 			return fmt.Errorf("failed deleting line: %w", err)
@@ -298,6 +300,8 @@ Selectors:
 		if err != nil {
 			return err
 		}
+
+		_ = storage.SaveBackup(cfg.VaultPath, fmt.Sprintf("edit %s", item.Display), item.FilePath)
 
 		if item.IsTask {
 			task := item.Task

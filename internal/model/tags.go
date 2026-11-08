@@ -66,11 +66,30 @@ func NewTask(raw string, status TaskStatus, now time.Time) *Task {
 	return t
 }
 
-// legacyStampRegex matches the legacy trailing timestamp suffix, e.g. "[2026-10-24T14]" or "[2026-10-24T14:05]".
-var legacyStampRegex = regexp.MustCompile(`\s*\[(\d{4}-\d{2}-\d{2})T(\d{2})(?::(\d{2}))?\]\s*$`)
+// legacyStampRegex matches legacy timestamp stamps like "[2026-10-24T14]" or "[2026-10-24T14:05]".
+var legacyStampRegex = regexp.MustCompile(`\[(\d{4}-\d{2}-\d{2})T(\d{2})(?::(\d{2}))?\]`)
+
+// MatchesTag checks if any tag in tags matches filterTag.
+// Matches are case-insensitive and match Obsidian nested tags (e.g. #project matches #project/alpha).
+func MatchesTag(tags []string, filterTag string) bool {
+	if filterTag == "" {
+		return true
+	}
+	cleanFilter := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(filterTag), "#"))
+	if cleanFilter == "" {
+		return true
+	}
+	for _, t := range tags {
+		cleanT := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(t), "#"))
+		if cleanT == cleanFilter || strings.HasPrefix(cleanT, cleanFilter+"/") {
+			return true
+		}
+	}
+	return false
+}
 
 // parseLeadingTimestamp extracts a timestamp from the start of content ("YYYY-MM-DD HH:MM ..."),
-// falling back to a legacy trailing "[YYYY-MM-DDTHH]" suffix. If neither is present it returns
+// falling back to a legacy "[YYYY-MM-DDTHH]" suffix or inline stamp. If neither is present it returns
 // the zero time — callers must treat a zero time as "undated", never as "now".
 func parseLeadingTimestamp(content string) (time.Time, string) {
 	if len(content) >= 16 {
@@ -78,13 +97,16 @@ func parseLeadingTimestamp(content string) (time.Time, string) {
 			return t, strings.TrimSpace(content[16:])
 		}
 	}
-	if m := legacyStampRegex.FindStringSubmatch(content); m != nil {
-		minute := "00"
-		if m[3] != "" {
-			minute = m[3]
+	if loc := legacyStampRegex.FindStringSubmatchIndex(content); loc != nil {
+		dateStr := content[loc[2]:loc[3]]
+		hourStr := content[loc[4]:loc[5]]
+		minuteStr := "00"
+		if loc[6] != -1 && loc[7] != -1 {
+			minuteStr = content[loc[6]:loc[7]]
 		}
-		if t, err := time.ParseInLocation(TimestampFormat, m[1]+" "+m[2]+":"+minute, time.Local); err == nil {
-			return t, strings.TrimSpace(legacyStampRegex.ReplaceAllString(content, ""))
+		if t, err := time.ParseInLocation(TimestampFormat, dateStr+" "+hourStr+":"+minuteStr, time.Local); err == nil {
+			cleaned := strings.TrimSpace(content[:loc[0]] + " " + content[loc[1]:])
+			return t, cleaned
 		}
 	}
 	return time.Time{}, content

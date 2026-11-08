@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,6 +13,33 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+var (
+	todayTag  string
+	todayJSON bool
+
+	yesterdayTag  string
+	yesterdayJSON bool
+
+	dayTag  string
+	dayJSON bool
+
+	weekTag  string
+	weekJSON bool
+
+	monthTag  string
+	monthJSON bool
+
+	tasksTag  string
+	tasksJSON bool
+)
+
+// DayOutput represents a single day's entries and tasks for JSON output.
+type DayOutput struct {
+	Date    string         `json:"date"`
+	Entries []*model.Entry `json:"entries"`
+	Tasks   []*model.Task  `json:"tasks"`
+}
 
 func parseDateInput(input string) (time.Time, error) {
 	input = strings.TrimSpace(input)
@@ -28,18 +56,24 @@ func parseDateInput(input string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("invalid date format %q; use YYYY-MM-DD or MM/DD", input)
 }
 
-func showDate(targetDate time.Time) error {
+func showDate(targetDate time.Time, tagFilter string, asJSON bool) error {
 	targetDateStr := targetDate.Format("2006-01-02")
 	isToday := targetDateStr == time.Now().Format("2006-01-02")
 
 	entries, err := storage.ScanEntries(cfg.JournalFilePath(), func(e *model.Entry) bool {
-		return e.Timestamp.Format("2006-01-02") == targetDateStr
+		if e.Timestamp.Format("2006-01-02") != targetDateStr {
+			return false
+		}
+		return model.MatchesTag(e.Tags, tagFilter)
 	})
 	if err != nil {
 		return fmt.Errorf("failed reading journal: %w", err)
 	}
 
 	tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
+		if !model.MatchesTag(t.Tags, tagFilter) {
+			return false
+		}
 		// When viewing today, always show in-progress tasks
 		if isToday && t.Status == model.StatusDoing {
 			return true
@@ -56,6 +90,17 @@ func showDate(targetDate time.Time) error {
 		return fmt.Errorf("failed reading tasks: %w", err)
 	}
 
+	if asJSON {
+		out := DayOutput{
+			Date:    targetDateStr,
+			Entries: entries,
+			Tasks:   tasks,
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(out)
+	}
+
 	ui.RenderDayGroup(os.Stdout, targetDate, entries, tasks, true)
 	return nil
 }
@@ -65,7 +110,7 @@ var todayCmd = &cobra.Command{
 	Short:   "Show today's journal entries and tasks (including in-progress tasks)",
 	GroupID: "read",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return showDate(time.Now())
+		return showDate(time.Now(), todayTag, todayJSON)
 	},
 }
 
@@ -74,7 +119,7 @@ var yesterdayCmd = &cobra.Command{
 	Short:   "Show yesterday's entries and tasks",
 	GroupID: "read",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return showDate(time.Now().AddDate(0, 0, -1))
+		return showDate(time.Now().AddDate(0, 0, -1), yesterdayTag, yesterdayJSON)
 	},
 }
 
@@ -88,7 +133,7 @@ var dayCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		return showDate(targetDate)
+		return showDate(targetDate, dayTag, dayJSON)
 	},
 }
 
@@ -110,13 +155,19 @@ var weekCmd = &cobra.Command{
 		startStr := startDate.Format("2006-01-02")
 
 		entries, err := storage.ScanEntries(cfg.JournalFilePath(), func(e *model.Entry) bool {
-			return e.Timestamp.Format("2006-01-02") >= startStr
+			if e.Timestamp.Format("2006-01-02") < startStr {
+				return false
+			}
+			return model.MatchesTag(e.Tags, weekTag)
 		})
 		if err != nil {
 			return err
 		}
 
 		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
+			if !model.MatchesTag(t.Tags, weekTag) {
+				return false
+			}
 			return (!t.CreatedAt.IsZero() && t.CreatedAt.Format("2006-01-02") >= startStr) || t.Status == model.StatusDoing
 		})
 		if err != nil {
@@ -135,6 +186,7 @@ var weekCmd = &cobra.Command{
 			tasksByDate[d] = append(tasksByDate[d], t)
 		}
 
+		var dayOutputs []DayOutput
 		for i := days - 1; i >= 0; i-- {
 			d := now.AddDate(0, 0, -i)
 			dStr := d.Format("2006-01-02")
@@ -142,9 +194,27 @@ var weekCmd = &cobra.Command{
 			dayTasks := tasksByDate[dStr]
 
 			if len(dayEntries) > 0 || len(dayTasks) > 0 {
-				ui.RenderDayGroup(os.Stdout, d, dayEntries, dayTasks, true)
+				if weekJSON {
+					dayOutputs = append(dayOutputs, DayOutput{
+						Date:    dStr,
+						Entries: dayEntries,
+						Tasks:   dayTasks,
+					})
+				} else {
+					ui.RenderDayGroup(os.Stdout, d, dayEntries, dayTasks, true)
+				}
 			}
 		}
+
+		if weekJSON {
+			if dayOutputs == nil {
+				dayOutputs = []DayOutput{}
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(dayOutputs)
+		}
+
 		return nil
 	},
 }
@@ -161,13 +231,19 @@ var monthCmd = &cobra.Command{
 		}
 
 		entries, err := storage.ScanEntries(cfg.JournalFilePath(), func(e *model.Entry) bool {
-			return strings.HasPrefix(e.Timestamp.Format("2006-01-02"), monthPrefix)
+			if !strings.HasPrefix(e.Timestamp.Format("2006-01-02"), monthPrefix) {
+				return false
+			}
+			return model.MatchesTag(e.Tags, monthTag)
 		})
 		if err != nil {
 			return err
 		}
 
 		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
+			if !model.MatchesTag(t.Tags, monthTag) {
+				return false
+			}
 			return !t.CreatedAt.IsZero() && strings.HasPrefix(t.CreatedAt.Format("2006-01-02"), monthPrefix)
 		})
 		if err != nil {
@@ -194,6 +270,7 @@ var monthCmd = &cobra.Command{
 		firstDay := time.Date(targetTime.Year(), targetTime.Month(), 1, 0, 0, 0, 0, time.Local)
 		lastDay := firstDay.AddDate(0, 1, -1)
 
+		var dayOutputs []DayOutput
 		hasAny := false
 		for d := firstDay; !d.After(lastDay); d = d.AddDate(0, 0, 1) {
 			dStr := d.Format("2006-01-02")
@@ -201,8 +278,25 @@ var monthCmd = &cobra.Command{
 			dayTasks := tasksByDate[dStr]
 			if len(dayEntries) > 0 || len(dayTasks) > 0 {
 				hasAny = true
-				ui.RenderDayGroup(os.Stdout, d, dayEntries, dayTasks, true)
+				if monthJSON {
+					dayOutputs = append(dayOutputs, DayOutput{
+						Date:    dStr,
+						Entries: dayEntries,
+						Tasks:   dayTasks,
+					})
+				} else {
+					ui.RenderDayGroup(os.Stdout, d, dayEntries, dayTasks, true)
+				}
 			}
+		}
+
+		if monthJSON {
+			if dayOutputs == nil {
+				dayOutputs = []DayOutput{}
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(dayOutputs)
 		}
 
 		if !hasAny {
@@ -220,10 +314,22 @@ var tasksListCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		filterStatus := "all"
 		if len(args) > 0 {
-			filterStatus = strings.ToLower(args[0])
+			arg := strings.ToLower(args[0])
+			switch arg {
+			case "todo", "doing", "in-progress", "inprogress", "done", "all":
+				filterStatus = arg
+			default:
+				if strings.HasPrefix(arg, "#") || tasksTag == "" {
+					tasksTag = arg
+				}
+			}
 		}
 
 		tasks, err := storage.ScanAllTasks(cfg.TasksFilePath(), cfg.JournalFilePath(), func(t *model.Task) bool {
+			if !model.MatchesTag(t.Tags, tasksTag) {
+				return false
+			}
+
 			switch filterStatus {
 			case "todo":
 				return t.Status == model.StatusTodo
@@ -237,6 +343,15 @@ var tasksListCmd = &cobra.Command{
 		})
 		if err != nil {
 			return err
+		}
+
+		if tasksJSON {
+			if tasks == nil {
+				tasks = []*model.Task{}
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(tasks)
 		}
 
 		if filterStatus == "all" && len(tasks) > 0 {
@@ -262,6 +377,24 @@ var tasksListCmd = &cobra.Command{
 }
 
 func init() {
+	todayCmd.Flags().StringVarP(&todayTag, "tag", "t", "", "Filter entries and tasks by tag")
+	todayCmd.Flags().BoolVar(&todayJSON, "json", false, "Output results as JSON")
+
+	yesterdayCmd.Flags().StringVarP(&yesterdayTag, "tag", "t", "", "Filter entries and tasks by tag")
+	yesterdayCmd.Flags().BoolVar(&yesterdayJSON, "json", false, "Output results as JSON")
+
+	dayCmd.Flags().StringVarP(&dayTag, "tag", "t", "", "Filter entries and tasks by tag")
+	dayCmd.Flags().BoolVar(&dayJSON, "json", false, "Output results as JSON")
+
+	weekCmd.Flags().StringVarP(&weekTag, "tag", "t", "", "Filter entries and tasks by tag")
+	weekCmd.Flags().BoolVar(&weekJSON, "json", false, "Output results as JSON")
+
+	monthCmd.Flags().StringVarP(&monthTag, "tag", "t", "", "Filter entries and tasks by tag")
+	monthCmd.Flags().BoolVar(&monthJSON, "json", false, "Output results as JSON")
+
+	tasksListCmd.Flags().StringVarP(&tasksTag, "tag", "t", "", "Filter tasks by tag")
+	tasksListCmd.Flags().BoolVar(&tasksJSON, "json", false, "Output results as JSON")
+
 	rootCmd.AddCommand(todayCmd)
 	rootCmd.AddCommand(yesterdayCmd)
 	rootCmd.AddCommand(dayCmd)
