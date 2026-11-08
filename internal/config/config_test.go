@@ -91,6 +91,26 @@ func TestSetAndGetValue(t *testing.T) {
 		t.Errorf("got %q, want hx", val)
 	}
 
+	// Test auto_archive
+	if err := cfg.SetValue("auto_archive", "false"); err != nil {
+		t.Fatalf("SetValue auto_archive failed: %v", err)
+	}
+	if cfg.IsAutoArchiveEnabled() {
+		t.Errorf("expected auto_archive to be false")
+	}
+	val, _ = cfg.GetValue("auto_archive")
+	if val != "false" {
+		t.Errorf("got %q, want false", val)
+	}
+
+	// Test archive_dir
+	if err := cfg.SetValue("archive_dir", "monthly"); err != nil {
+		t.Fatalf("SetValue archive_dir failed: %v", err)
+	}
+	if cfg.GetArchiveDir() != "monthly" {
+		t.Errorf("got %q, want monthly", cfg.GetArchiveDir())
+	}
+
 	if err := cfg.SetValue("invalid_key", "val"); err == nil {
 		t.Errorf("expected error on invalid key, got nil")
 	}

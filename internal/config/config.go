@@ -16,11 +16,14 @@ const (
 )
 
 type Config struct {
-	VaultPath     string `json:"vault_path"`
-	DefaultEditor string `json:"default_editor,omitempty"`
-	DateFormat    string `json:"date_format,omitempty"`
-	TimeFormat    string `json:"time_format,omitempty"`
-	ConfigPath    string `json:"-"`
+	VaultPath        string `json:"vault_path"`
+	DefaultEditor    string `json:"default_editor,omitempty"`
+	DateFormat       string `json:"date_format,omitempty"`
+	TimeFormat       string `json:"time_format,omitempty"`
+	AutoArchive      *bool  `json:"auto_archive,omitempty"`
+	ArchiveDir       string `json:"archive_dir,omitempty"`
+	LastArchiveCheck string `json:"last_archive_check,omitempty"`
+	ConfigPath       string `json:"-"`
 }
 
 // ExpandPath expands leading ~ to the current user's home directory.
@@ -82,6 +85,15 @@ func Load(flagPath string) (*Config, error) {
 				if fileCfg.TimeFormat != "" {
 					cfg.TimeFormat = fileCfg.TimeFormat
 				}
+				if fileCfg.AutoArchive != nil {
+					cfg.AutoArchive = fileCfg.AutoArchive
+				}
+				if fileCfg.ArchiveDir != "" {
+					cfg.ArchiveDir = fileCfg.ArchiveDir
+				}
+				if fileCfg.LastArchiveCheck != "" {
+					cfg.LastArchiveCheck = fileCfg.LastArchiveCheck
+				}
 			}
 		}
 	}
@@ -126,6 +138,27 @@ func (c *Config) TasksFilePath() string {
 // JournalFilePath returns the absolute path to journal.md
 func (c *Config) JournalFilePath() string {
 	return filepath.Join(c.VaultPath, JournalFileName)
+}
+
+// IsAutoArchiveEnabled returns true if auto archiving is enabled (defaults to true)
+func (c *Config) IsAutoArchiveEnabled() bool {
+	if c.AutoArchive == nil {
+		return true
+	}
+	return *c.AutoArchive
+}
+
+// GetArchiveDir returns the relative archive folder name (defaults to "archive")
+func (c *Config) GetArchiveDir() string {
+	if c.ArchiveDir != "" {
+		return c.ArchiveDir
+	}
+	return "archive"
+}
+
+// ArchiveDirPath returns the full path to the archive directory
+func (c *Config) ArchiveDirPath() string {
+	return filepath.Join(c.VaultPath, c.GetArchiveDir())
 }
 
 // EnsureDir guarantees the vault directory and data files exist.
@@ -180,8 +213,16 @@ func (c *Config) SetValue(key, value string) error {
 		c.DateFormat = value
 	case "time_format":
 		c.TimeFormat = value
+	case "auto_archive", "autoarchive", "archive":
+		valLower := strings.ToLower(value)
+		b := valLower == "true" || valLower == "yes" || valLower == "1" || valLower == "on"
+		c.AutoArchive = &b
+	case "archive_dir", "archivedir":
+		c.ArchiveDir = value
+	case "last_archive_check":
+		c.LastArchiveCheck = value
 	default:
-		return errors.New("unknown config key (valid keys: vault_path, default_editor, date_format, time_format)")
+		return errors.New("unknown config key (valid keys: vault_path, default_editor, date_format, time_format, auto_archive, archive_dir)")
 	}
 	return nil
 }
@@ -197,8 +238,17 @@ func (c *Config) GetValue(key string) (string, error) {
 		return c.DateFormat, nil
 	case "time_format":
 		return c.TimeFormat, nil
+	case "auto_archive", "autoarchive", "archive":
+		if c.IsAutoArchiveEnabled() {
+			return "true", nil
+		}
+		return "false", nil
+	case "archive_dir", "archivedir":
+		return c.GetArchiveDir(), nil
+	case "last_archive_check":
+		return c.LastArchiveCheck, nil
 	default:
-		return "", errors.New("unknown config key (valid keys: vault_path, default_editor, date_format, time_format)")
+		return "", errors.New("unknown config key (valid keys: vault_path, default_editor, date_format, time_format, auto_archive, archive_dir)")
 	}
 }
 

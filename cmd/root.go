@@ -52,6 +52,9 @@ Direct journal write:
 		// Ensure shell completion is installed in the user's rc file without duplication
 		_, _, _ = config.AutoInstallCompletion()
 
+		// Run automatic monthly consolidation check if month has rolled over
+		maybeAutoArchive(cmd)
+
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -137,6 +140,34 @@ func normalizeArgs(args []string) []string {
 	}
 
 	return result
+}
+
+func maybeAutoArchive(cmd *cobra.Command) {
+	if cmd != nil && (cmd.Name() == "archive" || cmd.Name() == "consolidate" || cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "version") {
+		return
+	}
+	if cfg == nil || !cfg.IsAutoArchiveEnabled() {
+		return
+	}
+
+	now := time.Now()
+	currentMonth := now.Format("2006-01")
+	if cfg.LastArchiveCheck == currentMonth {
+		return
+	}
+
+	// First time encountering a new month: consolidate past months
+	summaries, err := storage.ConsolidatePastMonths(cfg.VaultPath, cfg.GetArchiveDir(), false, now)
+	if err == nil {
+		cfg.LastArchiveCheck = currentMonth
+		_ = cfg.Save()
+		if len(summaries) > 0 {
+			for _, s := range summaries {
+				ui.PrintDim(os.Stdout, "ℹ Consolidated %s -> %s/%s.md (%d entries, %d completed tasks)\n",
+					s.Month, cfg.GetArchiveDir(), s.Month, s.JournalCount, s.TaskCount)
+			}
+		}
+	}
 }
 
 func Execute() {

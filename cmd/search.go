@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+var searchArchiveFlag bool
 
 var searchCmd = &cobra.Command{
 	Use:     "search <term>",
@@ -38,6 +41,23 @@ var searchCmd = &cobra.Command{
 		})
 		if err != nil {
 			return err
+		}
+
+		if searchArchiveFlag {
+			archiveDir := cfg.ArchiveDirPath()
+			if archiveFiles, err := filepath.Glob(filepath.Join(archiveDir, "*.md")); err == nil {
+				for _, af := range archiveFiles {
+					aEntries, _ := storage.ScanEntries(af, func(e *model.Entry) bool {
+						return re.MatchString(e.Text) || re.MatchString(e.RawLine)
+					})
+					entries = append(entries, aEntries...)
+
+					aTasks, _ := storage.ScanTasks(af, func(t *model.Task) bool {
+						return re.MatchString(t.Text) || re.MatchString(t.RawLine)
+					})
+					tasks = append(tasks, aTasks...)
+				}
+			}
 		}
 
 		fmt.Printf("Search results for %q (Journal: %d, Tasks: %d)\n", pattern, len(entries), len(tasks))
@@ -210,6 +230,7 @@ var statsCmd = &cobra.Command{
 }
 
 func init() {
+	searchCmd.Flags().BoolVarP(&searchArchiveFlag, "archive", "a", false, "Include monthly archive files in search")
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(tagsCmd)
 	rootCmd.AddCommand(tailCmd)

@@ -52,6 +52,18 @@ func PrintError(w io.Writer, format string, a ...interface{}) {
 	fmt.Fprintf(w, "%s✗%s %s\n", colorRed, colorReset, msg)
 }
 
+// PrintInfo prints a cyan info message.
+func PrintInfo(w io.Writer, format string, a ...interface{}) {
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintf(w, "%sℹ%s %s\n", colorCyan, colorReset, msg)
+}
+
+// PrintDim prints dimmed text.
+func PrintDim(w io.Writer, format string, a ...interface{}) {
+	msg := fmt.Sprintf(format, a...)
+	fmt.Fprintf(w, "%s%s%s", colorDim, msg, colorReset)
+}
+
 // PrintHeader prints a section header.
 func PrintHeader(w io.Writer, title string) {
 	fmt.Fprintf(w, "\n%s%s=== %s ===%s\n", colorBold, colorCyan, title, colorReset)

@@ -134,6 +134,28 @@ worklog config editor nvim
 worklog config --edit
 ```
 
+### 6. Monthly Archive & Consolidation
+
+Keep your active files lean while maintaining a full monthly backlog in Obsidian:
+
+```bash
+# Preview what would be consolidated
+worklog archive --dry-run
+
+# Consolidate past months into archive/YYYY-MM.md
+worklog archive
+
+# Consolidate a specific target month
+worklog archive 2026-10
+
+# Search including archives
+worklog search --archive "microservices"
+```
+
+* **Automatic**: When a new month begins, `worklog` automatically rolls over past completed tasks and journal entries into `archive/YYYY-MM.md`.
+* **Persistent Backlog**: Unfinished tasks (`todo [ ]` and `doing [/]`) **stay** in `tasks.md` as your active backlog so open items are never lost.
+
+
 ---
 
 ## License

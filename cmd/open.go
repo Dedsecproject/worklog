@@ -206,6 +206,8 @@ Examples:
 		fmt.Printf("  Editor:          %s\n", cfg.GetEditor())
 		fmt.Printf("  Date Format:     %s\n", cfg.DateFormat)
 		fmt.Printf("  Time Format:     %s\n", cfg.TimeFormat)
+		fmt.Printf("  Auto Archive:    %t\n", cfg.IsAutoArchiveEnabled())
+		fmt.Printf("  Archive Dir:     %s\n", cfg.ArchiveDirPath())
 		if cfg.ConfigPath != "" {
 			fmt.Printf("  Config File:     %s\n", cfg.ConfigPath)
 		}
@@ -213,6 +215,8 @@ Examples:
 		if !updated {
 			fmt.Printf("\n  %sTo modify settings:%s\n", "\033[2m", "\033[0m")
 			fmt.Printf("    worklog config vault_path <path>\n")
+			fmt.Printf("    worklog config auto_archive <true|false>\n")
+			fmt.Printf("    worklog config archive_dir <folder>\n")
 			fmt.Printf("    worklog config editor <name>\n")
 			fmt.Printf("    worklog config --edit\n")
 		}
