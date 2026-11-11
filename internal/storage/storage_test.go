@@ -182,6 +182,33 @@ func TestMultilineTaskScanning(t *testing.T) {
 	}
 }
 
+func TestMultilineTaskFilteredScanning(t *testing.T) {
+	tempDir := t.TempDir()
+	tasksFile := filepath.Join(tempDir, "tasks.md")
+
+	content := "- [ ] 2026-11-06 14:30 Task One Keep\n- [ ] 2026-11-06 14:40 Task Two Filter Out\n  Continuation for task two\n- [ ] 2026-11-06 14:50 Task Three Keep\n"
+	if err := os.WriteFile(tasksFile, []byte(content), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	// Filter out Task Two
+	tasks, err := ScanTasks(tasksFile, func(tk *model.Task) bool {
+		return strings.Contains(tk.Text, "Keep")
+	})
+	if err != nil {
+		t.Fatalf("ScanTasks failed: %v", err)
+	}
+	if len(tasks) != 2 {
+		t.Fatalf("expected 2 tasks, got %d", len(tasks))
+	}
+	if strings.Contains(tasks[0].Text, "Continuation for task two") {
+		t.Errorf("continuation line leaked into task 0: %q", tasks[0].Text)
+	}
+	if strings.Contains(tasks[1].Text, "Continuation for task two") {
+		t.Errorf("continuation line leaked into task 1: %q", tasks[1].Text)
+	}
+}
+
 func TestCommentSkipping(t *testing.T) {
 	tempDir := t.TempDir()
 	journalFile := filepath.Join(tempDir, "journal.md")

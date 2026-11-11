@@ -25,7 +25,8 @@ func ScanTasks(filePath string, filter TaskFilter) ([]*model.Task, error) {
 	}
 	defer file.Close()
 
-	var tasks []*model.Task
+	var allTasks []*model.Task
+	var lastTask *model.Task
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
 	lineNumber := 0
@@ -41,12 +42,10 @@ func ScanTasks(filePath string, filter TaskFilter) ([]*model.Task, error) {
 		task, err := model.ParseTask(line, lineNumber)
 		if err == nil {
 			task.FilePath = filePath
-			if filter == nil || filter(task) {
-				tasks = append(tasks, task)
-			}
-		} else if len(tasks) > 0 && (strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t")) {
+			lastTask = task
+			allTasks = append(allTasks, task)
+		} else if lastTask != nil && (strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t")) {
 			// Continuation line belonging to the previous task
-			lastTask := tasks[len(tasks)-1]
 			lastTask.Text += "\n" + strings.TrimSpace(line)
 			lastTask.RawLine += "\n" + line
 		}
@@ -54,6 +53,13 @@ func ScanTasks(filePath string, filter TaskFilter) ([]*model.Task, error) {
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+
+	var tasks []*model.Task
+	for _, task := range allTasks {
+		if filter == nil || filter(task) {
+			tasks = append(tasks, task)
+		}
 	}
 
 	return tasks, nil
@@ -87,7 +93,8 @@ func ScanEntries(filePath string, filter EntryFilter) ([]*model.Entry, error) {
 	}
 	defer file.Close()
 
-	var entries []*model.Entry
+	var allEntries []*model.Entry
+	var lastEntry *model.Entry
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
 	lineNumber := 0
@@ -103,12 +110,10 @@ func ScanEntries(filePath string, filter EntryFilter) ([]*model.Entry, error) {
 		entry, err := model.ParseEntry(line, lineNumber)
 		if err == nil {
 			entry.FilePath = filePath
-			if filter == nil || filter(entry) {
-				entries = append(entries, entry)
-			}
-		} else if len(entries) > 0 && (strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t")) {
+			lastEntry = entry
+			allEntries = append(allEntries, entry)
+		} else if lastEntry != nil && (strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "\t")) {
 			// Continuation line belonging to the previous journal entry
-			lastEntry := entries[len(entries)-1]
 			lastEntry.Text += "\n" + strings.TrimSpace(line)
 			lastEntry.RawLine += "\n" + line
 		}
@@ -116,6 +121,13 @@ func ScanEntries(filePath string, filter EntryFilter) ([]*model.Entry, error) {
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+
+	var entries []*model.Entry
+	for _, entry := range allEntries {
+		if filter == nil || filter(entry) {
+			entries = append(entries, entry)
+		}
 	}
 
 	return entries, nil

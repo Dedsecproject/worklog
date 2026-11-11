@@ -88,7 +88,14 @@ Examples:
 				if len(t.Tags) > 0 {
 					tagsStr = " " + strings.Join(t.Tags, " ")
 				}
-				sb.WriteString(fmt.Sprintf("- %s%s\n", t.Text, tagsStr))
+				lines := strings.Split(t.Text, "\n")
+				sb.WriteString(fmt.Sprintf("- %s%s\n", lines[0], tagsStr))
+				for i := 1; i < len(lines); i++ {
+					trimmed := strings.TrimSpace(lines[i])
+					if trimmed != "" {
+						sb.WriteString(fmt.Sprintf("  %s\n", trimmed))
+					}
+				}
 			}
 		}
 		sb.WriteString("\n")
@@ -102,7 +109,14 @@ Examples:
 				if len(t.Tags) > 0 {
 					tagsStr = " " + strings.Join(t.Tags, " ")
 				}
-				sb.WriteString(fmt.Sprintf("- %s%s\n", t.Text, tagsStr))
+				lines := strings.Split(t.Text, "\n")
+				sb.WriteString(fmt.Sprintf("- %s%s\n", lines[0], tagsStr))
+				for i := 1; i < len(lines); i++ {
+					trimmed := strings.TrimSpace(lines[i])
+					if trimmed != "" {
+						sb.WriteString(fmt.Sprintf("  %s\n", trimmed))
+					}
+				}
 			}
 		}
 		sb.WriteString("\n")
@@ -121,7 +135,14 @@ Examples:
 				if len(t.Tags) > 0 {
 					tagsStr = " " + strings.Join(t.Tags, " ")
 				}
-				sb.WriteString(fmt.Sprintf("- %s%s\n", t.Text, tagsStr))
+				lines := strings.Split(t.Text, "\n")
+				sb.WriteString(fmt.Sprintf("- %s%s\n", lines[0], tagsStr))
+				for j := 1; j < len(lines); j++ {
+					trimmed := strings.TrimSpace(lines[j])
+					if trimmed != "" {
+						sb.WriteString(fmt.Sprintf("  %s\n", trimmed))
+					}
+				}
 			}
 		}
 

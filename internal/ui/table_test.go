@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -104,5 +105,144 @@ func TestFormatEntryLineHangingIndent(t *testing.T) {
 		if trimmedLeading != prefixRunes {
 			t.Errorf("line %d does not have matching hanging indent: got %d spaces, want %d\nLine: %q", i, trimmedLeading, prefixRunes, lines[i])
 		}
+	}
+}
+
+func TestTaskWordWrapping(t *testing.T) {
+	DisableColor()
+	defer SetTerminalWidth(0)
+
+	now := time.Date(2026, 11, 6, 14, 0, 0, 0, time.Local)
+	task := &model.Task{
+		FilePath:   "/path/to/tasks.md",
+		LineNumber: 6,
+		Status:     model.StatusTodo,
+		CreatedAt:  now,
+		Text:       "update your recall extension to add the following: a way to see the tags; a sidecard if available of the note [2026-11-02T14]",
+		Tags:       []string{"#recall", "#extension"},
+	}
+
+	// Test wrapping at 60 columns
+	formatted := FormatTaskLineWithWidth(task, true, 60)
+	lines := strings.Split(formatted, "\n")
+
+	if len(lines) <= 1 {
+		t.Fatalf("expected task to wrap onto multiple lines, but got 1 line: %s", formatted)
+	}
+
+	textCol := strings.Index(lines[0], "update")
+	if textCol < 0 {
+		t.Fatalf("expected text to start with 'update' in line 0")
+	}
+
+	for i, line := range lines {
+		vWidth := VisibleWidth(line)
+		if vWidth > 60 {
+			t.Errorf("line %d exceeded maxWidth 60: width=%d, line=%q", i, vWidth, line)
+		}
+		if i > 0 {
+			trimmedLeading := len(line) - len(strings.TrimLeft(line, " "))
+			if trimmedLeading != textCol {
+				t.Errorf("line %d does not match hanging indent %d, got %d: %q", i, textCol, trimmedLeading, line)
+			}
+		}
+	}
+}
+
+func TestJournalEntryWordWrapping(t *testing.T) {
+	DisableColor()
+	defer SetTerminalWidth(0)
+
+	now := time.Date(2026, 11, 7, 21, 12, 0, 0, time.Local)
+	entry := &model.Entry{
+		LineNumber: 6,
+		Timestamp:  now,
+		Text:       "technically speaking, there is a worklog, there is a task, and there is a journal, i just need to configure them to see how I can make them work properly to my needs",
+		Tags:       []string{"#reflection"},
+	}
+
+	// Test wrapping at 70 columns
+	formatted := FormatEntryLineWithWidth(entry, true, 70)
+	lines := strings.Split(formatted, "\n")
+
+	if len(lines) <= 1 {
+		t.Fatalf("expected journal entry to wrap onto multiple lines, got 1 line: %s", formatted)
+	}
+
+	prefixRunes := utf8.RuneCountInString(lines[0][:strings.Index(lines[0], "technically")])
+
+	for i, line := range lines {
+		vWidth := VisibleWidth(line)
+		if vWidth > 70 {
+			t.Errorf("line %d exceeded maxWidth 70: width=%d, line=%q", i, vWidth, line)
+		}
+		if i > 0 {
+			trimmedLeading := len(line) - len(strings.TrimLeft(line, " "))
+			if trimmedLeading != prefixRunes {
+				t.Errorf("line %d does not match hanging indent %d, got %d: %q", i, prefixRunes, trimmedLeading, line)
+			}
+		}
+	}
+}
+
+func TestRenderGroupedTasksAndDayGroupAlignment(t *testing.T) {
+	DisableColor()
+	SetTerminalWidth(60)
+	defer SetTerminalWidth(0)
+
+	now := time.Date(2026, 11, 6, 14, 0, 0, 0, time.Local)
+	task := &model.Task{
+		FilePath:   "/path/to/tasks.md",
+		LineNumber: 1,
+		Status:     model.StatusDoing,
+		CreatedAt:  now,
+		Text:       "This is a very long task description that should wrap nicely and keep its 4 space indent",
+	}
+
+	entry := &model.Entry{
+		LineNumber: 1,
+		Timestamp:  now,
+		Text:       "This is a very long journal entry that should wrap nicely and keep its 4 space indent",
+	}
+
+	var buf bytes.Buffer
+	RenderGroupedTasks(&buf, []*model.Task{task}, nil, nil, true)
+	output := buf.String()
+
+	// In RenderGroupedTasks, all task lines should start with at least 4 spaces
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "This is") || strings.Contains(line, "nicely") {
+			if !strings.HasPrefix(line, "    ") {
+				t.Errorf("expected line in RenderGroupedTasks to have 4-space prefix, got: %q", line)
+			}
+		}
+	}
+
+	var dayBuf bytes.Buffer
+	RenderDayGroup(&dayBuf, now, []*model.Entry{entry}, []*model.Task{task}, true)
+	dayOutput := dayBuf.String()
+
+	// In RenderDayGroup, all task and journal lines should start with 4 spaces
+	for _, line := range strings.Split(dayOutput, "\n") {
+		if strings.Contains(line, "This is") || strings.Contains(line, "nicely") {
+			if !strings.HasPrefix(line, "    ") {
+				t.Errorf("expected line in RenderDayGroup to have 4-space prefix, got: %q", line)
+			}
+		}
+	}
+}
+
+func TestVisibleWidthAndStripANSI(t *testing.T) {
+	colored := "\033[36m#meetings\033[0m"
+	if StripANSI(colored) != "#meetings" {
+		t.Errorf("StripANSI failed: got %q", StripANSI(colored))
+	}
+	if VisibleWidth(colored) != 9 {
+		t.Errorf("VisibleWidth failed: got %d, want 9", VisibleWidth(colored))
+	}
+
+	plain := "Hello World"
+	if VisibleWidth(plain) != 11 {
+		t.Errorf("VisibleWidth plain failed: got %d, want 11", VisibleWidth(plain))
 	}
 }

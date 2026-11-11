@@ -4,6 +4,10 @@
 
 `worklog` is a native terminal CLI tool designed for zero-latency capture of tasks and ideas to prevent context-switch decay. It writes directly to plain Markdown files (`tasks.md` and `journal.md`) that live inside an Obsidian vault or standalone directory.
 
+<p align="center">
+  <img src="assets/worklog-tasks.png" alt="worklog tasks dashboard" width="100%">
+</p>
+
 ---
 
 ## Features
@@ -11,9 +15,9 @@
 - **⚡ Zero-Latency (<15ms):** Compiled Go binary using direct append-only disk writes (`O_APPEND`).
 - **📝 Obsidian & Local-First:** Writes standard GitHub-flavored Markdown checkboxes and bullet entries. Fully compatible with Obsidian's file watcher, Dataview, and plain text editors.
 - **🛡️ Atomic Mutations:** Safe temp-file rewrites and atomic renames prevent partial writes and file corruption.
+- **✨ Responsive Word Wrapping & Hanging Indents:** Automatic terminal-width word wrapping with surgical hanging indents for tasks, journal entries, and multi-line notes without breaking words mid-character or misaligning checkboxes.
 - **🔍 Smart Disambiguation:** Differentiates between tasks (`#t:1`) and journal entries (`#j:1`) so modifications and deletions are unambiguous.
 - **⚡ In-Progress Tracking:** Notes and tasks marked with `[/]` are automatically highlighted in a dedicated dashboard view.
-- **✨ Multi-Line Hanging Indents:** Beautifully aligned checkboxes and hanging indents for multi-line tasks and notes.
 - **🐚 Automatic Shell Completion:** Zero-config shell completion for Zsh, Bash, and Fish without duplicate entries.
 
 ---
@@ -63,7 +67,14 @@ worklog journal "Finished database migration script"
 
 # View recent journal entries
 worklog journal
+
+# Compose a multi-line entry in $EDITOR
+worklog note
 ```
+
+<p align="center">
+  <img src="assets/worklog-journal.png" alt="worklog journal stream" width="100%">
+</p>
 
 ### 2. Task Management
 
@@ -109,6 +120,10 @@ worklog today --json            # JSON output for today's entries and tasks
 worklog search "api" --json     # Structured search results in JSON
 ```
 
+<p align="center">
+  <img src="assets/worklog-today.png" alt="worklog today view" width="100%">
+</p>
+
 ### 4. Daily Standup
 
 Generate a clean standup summary for Slack, Teams, or your daily notes:
@@ -152,7 +167,9 @@ worklog edit j:1 "Updated note text"
 worklog edit t:1        # Opens task in $EDITOR
 ```
 
-### 8. Configuration & Vault Path
+### 8. Configuration, Vault Path & Editor
+
+By default, `worklog` stores entries in `~/.local/share/worklog` (or `~/worklog/` if not present). You can easily point it to your Obsidian vault:
 
 ```bash
 # View active configuration
@@ -166,6 +183,14 @@ worklog config editor nvim
 
 # Open config.json directly in $EDITOR
 worklog config --edit
+
+# Open vault files directly in $EDITOR
+worklog open tasks      # Opens tasks.md in $EDITOR
+worklog open journal    # Opens journal.md in $EDITOR
+
+# Export entries to stdout
+worklog export json     # Dump all tasks and journal entries as JSON
+worklog export csv      # Export tasks and entries as CSV
 ```
 
 ### 9. Monthly Archive & Consolidation
@@ -188,7 +213,6 @@ worklog search --archive "microservices"
 
 * **Automatic**: When a new month begins, `worklog` automatically rolls over past completed tasks and journal entries into `archive/YYYY-MM.md`.
 * **Persistent Backlog**: Unfinished tasks (`todo [ ]` and `doing [/]`) **stay** in `tasks.md` as your active backlog so open items are never lost.
-
 
 ---
 
